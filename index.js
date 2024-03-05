@@ -166,7 +166,7 @@ app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
     resave: false,
     saveUninitialized: false,
     store: store,
