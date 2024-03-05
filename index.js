@@ -154,10 +154,10 @@ const corsOptions = {
 };
 const server = http.createServer(app);
 
-// const store = new MongoDBStore({
-//   uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
-//   collection: "mySessions",
-// });
+const store = new MongoDBStore({
+  uri: process.env.MONGODB_URI,
+  collection: "mySessions",
+});
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
