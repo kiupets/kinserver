@@ -39,23 +39,23 @@ const reservationSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  totalPrice: {
+  precioTotal: {
     type: Number,
-    required: true,
+    // required: true,
   },
 
   nights: {
     type: Number,
-    required: true,
+    // required: true,
   },
   dni: {
     type: String,
-    required: true,
+    // required: true,
     unique: true,
   },
   comments: {
     type: String,
-    required: true,
+    // required: true,
   },
   adelanto: {
     type: Number,
