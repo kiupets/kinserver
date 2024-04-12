@@ -49,9 +49,9 @@ const reservationSchema = new mongoose.Schema({
     // required: true,
   },
   dni: {
-    type: String,
+    type: Number,
     // required: true,
-    unique: true,
+    // unique: true,
   },
   comments: {
     type: String,

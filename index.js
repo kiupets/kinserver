@@ -91,8 +91,22 @@ app.post("/create-reservation", async (req, res) => {
   try {
     // const userId = req.session.userId;
 
-    const { name, email, phone, room, start, end, price, nights, userId } =
-      req.body;
+    const {
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      price,
+      nights,
+      userId,
+      comments,
+      precioTotal,
+      adelanto,
+      montoPendiente,
+      dni,
+    } = req.body;
     if (!userId) {
       return res
         .status(401)
