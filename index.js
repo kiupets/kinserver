@@ -112,6 +112,11 @@ app.post("/create-reservation", async (req, res) => {
       end,
       price,
       nights,
+      comments,
+      precioTotal,
+      adelanto,
+      montoPendiente,
+      dni,
     });
 
     await reservation.save();

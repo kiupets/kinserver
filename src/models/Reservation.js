@@ -1,54 +1,3 @@
-// // models/Reservation.js
-// const mongoose = require("mongoose");
-
-// const reservationSchema = new mongoose.Schema({
-//   id: {
-//     type: String, // O el tipo de dato que prefieras para el campo de identificación
-//     required: true,
-//     unique: true, // Asegura que cada identificación sea única
-//   },
-//   user: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: "User", // Referencia al modelo User si es necesario
-//     required: true,
-//   },
-//   name: {
-//     type: String,
-//     required: true,
-//   },
-//   email: {
-//     type: String,
-//     required: true,
-//   },
-//   phone: {
-//     type: String,
-//     required: true,
-//   },
-//   room: {
-//     type: String,
-//     required: true,
-//   },
-//   start: {
-//     type: Date,
-//     required: true,
-//   },
-//   end: {
-//     type: Date,
-//     required: true,
-//   },
-//   price: {
-//     type: Number,
-//     required: true,
-//   },
-//   nights: {
-//     type: Number,
-//     required: true,
-//   },
-// });
-// const Reservation = mongoose.model("Reservation", reservationSchema);
-
-// module.exports = Reservation;
-
 const mongoose = require("mongoose");
 
 const reservationSchema = new mongoose.Schema({
@@ -90,9 +39,31 @@ const reservationSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  totalPrice: {
+    type: Number,
+    required: true,
+  },
+
   nights: {
     type: Number,
     required: true,
+  },
+  dni: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  comments: {
+    type: String,
+    required: true,
+  },
+  adelanto: {
+    type: Number,
+    // required: true,
+    default: 0,
+  },
+  montoPendiente: {
+    type: Number,
   },
 });
 
