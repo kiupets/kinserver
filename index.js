@@ -135,8 +135,6 @@ app.post("/create-reservation", async (req, res) => {
 
     await reservation.save();
 
-    console.log(connectedUsers);
-    console.log(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     console.log(userSockets);
     userSockets.forEach((userSocket) => {
