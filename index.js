@@ -40,9 +40,9 @@ app.use(
   session({
     // secret: "mysecret",
     secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-    },
+    // cookie: {
+    //   maxAge: 1000 * 60 * 60 * 24, // 1 day
+    // },
     resave: false,
     saveUninitialized: false,
     store: store,
