@@ -65,6 +65,10 @@ const reservationSchema = new mongoose.Schema({
   montoPendiente: {
     type: Number,
   },
+  isOverlapping: {
+    type: Boolean,
+    // default: false,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
