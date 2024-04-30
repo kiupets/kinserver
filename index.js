@@ -140,6 +140,59 @@ app.post("/create-reservation", async (req, res) => {
       dni,
     });
 
+    app.put("/update-reservation/:id", async (req, res) => {
+      try {
+        const reservationId = req.params.id;
+        const {
+          name,
+          email,
+          phone,
+          room,
+          start,
+          end,
+          isOverlapping,
+          price,
+          nights,
+          userId,
+          comments,
+          precioTotal,
+          adelanto,
+          montoPendiente,
+          dni,
+        } = req.body;
+
+        const reservation = await Reservation.findById(reservationId);
+
+        if (!reservation) {
+          return res.status(404).json({ message: "Reserva no encontrada" });
+        }
+
+        reservation.name = name;
+        reservation.email = email;
+        reservation.phone = phone;
+        reservation.room = room;
+        reservation.start = start;
+        reservation.end = end;
+        reservation.isOverlapping = isOverlapping;
+        reservation.price = price;
+        reservation.nights = nights;
+        reservation.userId = userId;
+        reservation.comments = comments;
+        reservation.precioTotal = precioTotal;
+        reservation.adelanto = adelanto;
+        reservation.montoPendiente = montoPendiente;
+        reservation.dni = dni;
+
+        await reservation.save();
+
+        res
+          .status(200)
+          .json({ message: "Reserva actualizada exitosamente.", reservation });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     await reservation.save();
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
