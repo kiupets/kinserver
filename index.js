@@ -119,8 +119,6 @@ app.post("/create-reservation", async (req, res) => {
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
     }
 
-    const id = uuid.v4();
-
     const reservation = new Reservation({
       user: userId,
       name,
@@ -137,7 +135,6 @@ app.post("/create-reservation", async (req, res) => {
       adelanto,
       montoPendiente,
       dni,
-      id,
     });
 
     await reservation.save();
