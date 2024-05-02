@@ -45,8 +45,8 @@ const reservationSchema = new mongoose.Schema({
   },
   dni: {
     type: Number,
-    // required: true,
-    // unique: true,
+    required: true,
+    unique: true,
   },
   comments: {
     type: String,
@@ -63,6 +63,10 @@ const reservationSchema = new mongoose.Schema({
   isOverlapping: {
     type: Boolean,
     // default: false,
+  },
+  nombre_recepcionista: {
+    type: String,
+    required: true,
   },
 });
 

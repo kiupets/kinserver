@@ -108,6 +108,7 @@ app.post("/create-reservation", async (req, res) => {
       comments,
       precioTotal,
       adelanto,
+      nombre_recepcionista,
       montoPendiente,
       dni,
     } = req.body;
@@ -131,6 +132,7 @@ app.post("/create-reservation", async (req, res) => {
       comments,
       precioTotal,
       adelanto,
+      nombre_recepcionista,
       montoPendiente,
       dni,
     });
