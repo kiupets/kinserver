@@ -127,6 +127,10 @@ app.put("/update-reservation/:id", async (req, res) => {
     if (!updatedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationCreated", updatedReservation);
+    });
     res.status(200).json({
       message: "Reservation updated successfully",
       reservation: updatedReservation,
