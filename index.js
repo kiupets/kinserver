@@ -136,7 +136,7 @@ app.post("/create-reservation", async (req, res) => {
       montoPendiente,
       dni,
     });
-
+    console.log(reservation);
     await reservation.save();
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
