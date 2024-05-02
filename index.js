@@ -119,10 +119,9 @@ app.post("/create-reservation", async (req, res) => {
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
     }
     // console.log(userId);
-    const id = uuid.v4();
+    // const id = uuid.v4();
 
     const reservation = new Reservation({
-      id,
       user: userId,
       name,
       email,
@@ -141,6 +140,11 @@ app.post("/create-reservation", async (req, res) => {
     });
 
     await reservation.save();
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationCreated", reservation);
+    });
     res.status(200).json({
       message: "Reservation created successfully",
       reservation: updatedReservation,
@@ -148,12 +152,6 @@ app.post("/create-reservation", async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
-});
-
-const userSockets = connectedUsers.filter((user) => user.user === userId);
-
-userSockets.forEach((userSocket) => {
-  io.to(userSocket.socketId).emit("reservationCreated", reservation);
 });
 
 // server.listen(PORT, () => {
