@@ -90,6 +90,7 @@ io.on("connection", (socket) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/reservations", reservationRoutes);
 app.post("/create-reservation", async (req, res) => {
   try {
     const { userId, ...reservationDetails } = req.body;
@@ -145,10 +146,4 @@ server.listen(PORT, () => {
   console.log(`listening on *:${PORT}`);
 });
 
-// server.listen(PORT, () => {
-//   console.log("listening on *:8000");
-// });
-server.listen(PORT, () => {
-  console.log("listening on *:8000");
-});
 module.exports.connectedUsers = connectedUsers;
