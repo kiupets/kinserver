@@ -91,49 +91,58 @@ io.on("connection", (socket) => {
 
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
+
 app.post("/create-reservation", async (req, res) => {
   try {
-    const { userId, ...reservationDetails } = req.body;
+    // const userId = req.session.userId;
+
+    const {
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      isOverlapping,
+      price,
+      nights,
+      userId,
+      comments,
+      precioTotal,
+      adelanto,
+      montoPendiente,
+      dni,
+    } = req.body;
     if (!userId) {
       return res
         .status(401)
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
     }
-    const reservation = new Reservation({
-      user: userId,
-      ...reservationDetails,
-    });
-    await reservation.save();
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", reservation);
-    });
-    res
-      .status(201)
-      .json({ message: "Reserva creada exitosamente.", reservation });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    // console.log(userId);
+    const id = uuid.v4();
 
-// Corrected PUT route for updating a reservation
-app.put("/update-reservation/:id", async (req, res) => {
-  try {
-    const reservationId = req.params.id;
-    const updatedReservation = await Reservation.findByIdAndUpdate(
-      reservationId,
-      req.body,
-      { new: true }
-    );
-    if (!updatedReservation) {
-      return res.status(404).json({ message: "Reservation not found" });
-    }
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", updatedReservation);
+    const reservation = new Reservation({
+      id,
+      user: userId,
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      isOverlapping,
+      price,
+      nights,
+      comments,
+      precioTotal,
+      adelanto,
+      montoPendiente,
+      dni,
     });
+
+    await reservation.save();
     res.status(200).json({
-      message: "Reservation updated successfully",
+      message: "Reservation created successfully",
       reservation: updatedReservation,
     });
   } catch (error) {
@@ -141,9 +150,16 @@ app.put("/update-reservation/:id", async (req, res) => {
   }
 });
 
-// Ensure the server is listening
-server.listen(PORT, () => {
-  console.log(`listening on *:${PORT}`);
+const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+userSockets.forEach((userSocket) => {
+  io.to(userSocket.socketId).emit("reservationCreated", reservation);
 });
 
+// server.listen(PORT, () => {
+//   console.log("listening on *:8000");
+// });
+server.listen(PORT, () => {
+  console.log("listening on *:8000");
+});
 module.exports.connectedUsers = connectedUsers;
