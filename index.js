@@ -118,7 +118,7 @@ app.post("/create-reservation", async (req, res) => {
         .status(401)
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
     }
-    // console.log(userId);
+
     const id = uuid.v4();
 
     const reservation = new Reservation({
@@ -148,7 +148,7 @@ app.post("/create-reservation", async (req, res) => {
     });
     res.status(200).json({
       message: "Reservation created successfully",
-      reservation: updatedReservation,
+      reservation: reservation,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
