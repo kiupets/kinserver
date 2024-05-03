@@ -145,6 +145,34 @@ app.post("/create-reservation", async (req, res) => {
     });
     res.status(200).json({
       message: "Reservation created successfully",
+      reservation: { ...reservation.toObject(), id: reservation._id },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+app.put("/update-reservation/:id", async (req, res) => {
+  const { id } = req.params;
+  const updateData = req.body;
+
+  try {
+    const reservation = await Reservation.findById(id);
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    // Update the reservation with new data
+    Object.assign(reservation, updateData);
+    await reservation.save();
+
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationCreated", reservation);
+    });
+
+    res.status(200).json({
+      message: "Reservation updated successfully",
       reservation: reservation,
     });
   } catch (error) {
