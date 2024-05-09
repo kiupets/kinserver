@@ -141,7 +141,10 @@ app.post("/create-reservation", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", reservation);
+      io.to(userSocket.socketId).emit("reservationCreated", {
+        ...reservation.toObject(),
+        id: reservation._id,
+      });
     });
     res.status(200).json({
       message: "Reservation created successfully",
@@ -168,12 +171,15 @@ app.put("/update-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationUpdated", reservation);
+      io.to(userSocket.socketId).emit("reservationUpdated", {
+        ...reservation.toObject(),
+        id: reservation._id,
+      });
     });
 
     res.status(200).json({
       message: "Reservation updated successfully",
-      reservation: reservation,
+      reservation: { ...reservation.toObject(), id: reservation._id },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
