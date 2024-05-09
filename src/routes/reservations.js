@@ -93,62 +93,62 @@ const isAuthenticated = (req, res, next) => {
   }
 };
 
-// router.post("/create-reservation", async (req, res) => {
-//   try {
-//     console.log(connectedUsers);
-//     const userId = req.session.userId; // Obtener el ID del usuario desde la sesión
+router.post("/create-reservation", async (req, res) => {
+  try {
+    console.log(connectedUsers);
+    const userId = req.session.userId; // Obtener el ID del usuario desde la sesión
 
-//     if (!userId) {
-//       console.log("dale dale user");
-//       return res
-//         .status(401)
-//         .json({ message: "Debe iniciar sesión para hacer una reserva" });
-//     }
+    if (!userId) {
+      console.log("dale dale user");
+      return res
+        .status(401)
+        .json({ message: "Debe iniciar sesión para hacer una reserva" });
+    }
 
-//     // Extraer datos de la solicitud
-//     const { name, email, phone, room, start, end, price, nights } = req.body;
+    // Extraer datos de la solicitud
+    const { name, email, phone, room, start, end, price, nights } = req.body;
 
-//     // Generar un nuevo ID para la reserva
-//     const id = uuid.v4();
+    // Generar un nuevo ID para la reserva
+    const id = uuid.v4();
 
-//     // Crear una nueva instancia de Reservation
-//     const reservation = new Reservation({
-//       id,
-//       user: userId,
-//       name,
-//       email,
-//       phone,
-//       room,
-//       start,
-//       end,
-//       price,
-//       nights,
-//     });
+    // Crear una nueva instancia de Reservation
+    const reservation = new Reservation({
+      id,
+      user: userId,
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      price,
+      nights,
+    });
 
-//     // Guardar la reserva en la base de datos
-//     await reservation.save();
+    // Guardar la reserva en la base de datos
+    await reservation.save();
 
-//     // Emitir un evento a través de socket.io solo al usuario logeado
-//     if (req.io && connectedUsers) {
-//       // const socketsToSendTo = Object.values(connectedUsers);
-//       console.log(connectedUsers, "reqqqqqqqqqqqqqqqqq");
-//       // for (const socketId of socketsToSendTo) {
-//       //   req.io.to(socketId).emit("chupeteINFRONT", reservation);
-//       // }
-//       // console.log("req io esta connectado ");
-//       // // req.io.to(userId).emit("chupeteINFRONT", reservation);
-//       // req.io.emit("chupeteINFRONT", reservation);
-//     }
-//     // req.io.to(userId).emit("chupeteINFRONT", reservation);
-//     // Responder con un mensaje de éxito y la reserva creada
-//     res
-//       .status(201)
-//       .json({ message: "Reserva creada exitosamente.", reservation });
-//   } catch (error) {
-//     // Manejar errores
-//     res.status(500).json({ error: error.message });
-//   }
-// });
+    // Emitir un evento a través de socket.io solo al usuario logeado
+    if (req.io && connectedUsers) {
+      // const socketsToSendTo = Object.values(connectedUsers);
+      console.log(connectedUsers, "reqqqqqqqqqqqqqqqqq");
+      // for (const socketId of socketsToSendTo) {
+      //   req.io.to(socketId).emit("chupeteINFRONT", reservation);
+      // }
+      // console.log("req io esta connectado ");
+      // // req.io.to(userId).emit("chupeteINFRONT", reservation);
+      // req.io.emit("chupeteINFRONT", reservation);
+    }
+    // req.io.to(userId).emit("chupeteINFRONT", reservation);
+    // Responder con un mensaje de éxito y la reserva creada
+    res
+      .status(201)
+      .json({ message: "Reserva creada exitosamente.", reservation });
+  } catch (error) {
+    // Manejar errores
+    res.status(500).json({ error: error.message });
+  }
+});
 
 router.get("/reservations", async (req, res) => {
   try {

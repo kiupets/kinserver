@@ -153,7 +153,7 @@ app.post("/create-reservation", async (req, res) => {
 });
 app.put("/update-reservation/:id", async (req, res) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const { userId, ...updatedData } = req.body;
 
   try {
     const reservation = await Reservation.findById(id);
@@ -168,7 +168,7 @@ app.put("/update-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", reservation);
+      io.to(userSocket.socketId).emit("reservationUpdated", reservation);
     });
 
     res.status(200).json({
@@ -180,9 +180,6 @@ app.put("/update-reservation/:id", async (req, res) => {
   }
 });
 
-// server.listen(PORT, () => {
-//   console.log("listening on *:8000");
-// });
 server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
