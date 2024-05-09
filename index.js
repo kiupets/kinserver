@@ -153,7 +153,7 @@ app.post("/create-reservation", async (req, res) => {
 });
 app.put("/update-reservation/:id", async (req, res) => {
   const { id } = req.params;
-  const { userId, ...updatedData } = req.body;
+  const { userId, ...updateData } = req.body;
 
   try {
     const reservation = await Reservation.findById(id);
