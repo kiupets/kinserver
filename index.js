@@ -154,6 +154,7 @@ app.post("/create-reservation", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.put("/update-reservation/:id", async (req, res) => {
   const { id } = req.params;
   const { userId, ...updateData } = req.body;
