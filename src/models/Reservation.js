@@ -4,35 +4,35 @@ const reservationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    // required: true,
   },
   name: {
     type: String,
-    required: true,
+    // required: true,
   },
   email: {
     type: String,
-    required: true,
+    // required: true,
   },
   phone: {
     type: String,
-    required: true,
+    // required: true,
   },
   room: {
     type: String,
-    required: true,
+    // required: true,
   },
   start: {
     type: Date,
-    required: true,
+    // required: true,
   },
   end: {
     type: Date,
-    required: true,
+    // required: true,
   },
   price: {
     type: Number,
-    required: true,
+    // required: true,
   },
   precioTotal: {
     type: Number,
@@ -45,7 +45,7 @@ const reservationSchema = new mongoose.Schema({
   },
   dni: {
     type: Number,
-    required: true,
+    // required: true,
     // unique: true,
   },
   comments: {
@@ -55,7 +55,7 @@ const reservationSchema = new mongoose.Schema({
   adelanto: {
     type: Number,
     // required: true,
-    default: 0,
+    // default: 0,
   },
   montoPendiente: {
     type: Number,
@@ -66,7 +66,7 @@ const reservationSchema = new mongoose.Schema({
   },
   nombre_recepcionista: {
     type: String,
-    required: true,
+    // required: true,
   },
 });
 
