@@ -68,6 +68,10 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     // required: true,
   },
+  time: {
+    type: Date,
+    // required: true,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
