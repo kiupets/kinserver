@@ -157,43 +157,6 @@ app.post("/create-reservation", async (req, res) => {
   }
 });
 
-app.put("/update-reservation/:id", async (req, res) => {
-  const { id } = req.params;
-  const { userId, ...updateData } = req.body;
-
-  try {
-    // Step 1: Delete the existing reservation
-    const deletedReservation = await Reservation.findByIdAndDelete(id);
-    if (!deletedReservation) {
-      return res.status(404).json({ message: "Reservation not found" });
-    }
-
-    // Step 2: Create a new reservation with the updated data
-    const newReservation = new Reservation({
-      ...updateData,
-      user: userId,
-    });
-
-    await newReservation.save();
-
-    // Notify connected users about the update
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationUpdated", {
-        ...newReservation.toObject(),
-        id: newReservation._id,
-      });
-    });
-
-    res.status(200).json({
-      message: "Reservation updated and new one created successfully",
-      reservation: { ...newReservation.toObject(), id: newReservation._id },
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
