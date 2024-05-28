@@ -128,7 +128,7 @@ app.post("/create-reservation", async (req, res) => {
       start,
       end,
       time,
-      // isOverlapping,
+      isOverlapping,
       price,
       nights,
       comments,
