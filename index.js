@@ -209,7 +209,7 @@ app.put("/update-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationUpdated", {
+      io.to(userSocket.socketId).emit("updateReservation", {
         ...updatedReservation.toObject(),
         id: updatedReservation._id,
       });
