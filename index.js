@@ -156,6 +156,76 @@ app.post("/create-reservation", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.put("/update-reservation/:id", async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const {
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      isOverlapping,
+      price,
+      nights,
+      time,
+      userId,
+      comments,
+      precioTotal,
+      adelanto,
+      nombre_recepcionista,
+      montoPendiente,
+      dni,
+    } = req.body;
+
+    const updatedReservation = await Reservation.findByIdAndUpdate(
+      reservationId,
+      {
+        name,
+        email,
+        phone,
+        room,
+        start,
+        end,
+        time,
+        isOverlapping,
+        price,
+        nights,
+        comments,
+        precioTotal,
+        adelanto,
+        nombre_recepcionista,
+        montoPendiente,
+        dni,
+      },
+      { new: true }
+    );
+
+    if (!updatedReservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationUpdated", {
+        ...updatedReservation.toObject(),
+        id: updatedReservation._id,
+      });
+    });
+
+    res.status(200).json({
+      message: "Reservation updated successfully",
+      reservation: {
+        ...updatedReservation.toObject(),
+        id: updatedReservation._id,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 server.listen(PORT, () => {
   console.log("listening on *:8000");
