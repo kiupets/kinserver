@@ -257,7 +257,35 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+router.get("/total-sales/:month", async (req, res) => {
+  try {
+    const { month } = req.params;
+    const startDate = new Date(new Date().getFullYear(), month - 1, 1);
+    const endDate = new Date(new Date().getFullYear(), month, 0);
 
+    const totalSales = await Reservation.aggregate([
+      {
+        $match: {
+          start: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]);
+
+    res
+      .status(200)
+      .json({
+        totalSales: totalSales.length > 0 ? totalSales[0].totalAmount : 0,
+      });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
