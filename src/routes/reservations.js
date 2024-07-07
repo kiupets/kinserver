@@ -164,21 +164,6 @@ router.get("/reservations", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-router.get("/all", async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    if (!userId) {
-      return res
-        .status(401)
-        .json({ message: "Debe iniciar sesión para ver las reservas" });
-    }
-
-    const userReservations = await Reservation.find({ user: userId });
-    res.status(200).json({ userReservations });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.get("/user/:userId", async (req, res) => {
   const userId = req.params.userId;

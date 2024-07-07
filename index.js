@@ -19,8 +19,8 @@ app.use(express.urlencoded({ extended: true }));
 const cors = require("cors");
 
 const corsOptions = {
-  origin: "*",
-  methods: ["GET", "POST", "OPTIONS"],
+  origin: "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
 const server = http.createServer(app);
@@ -31,7 +31,10 @@ const store = new MongoDBStore({
   collection: "mySessions",
 });
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  // cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: {
+    origin: "http://localhost:3000",
+  },
 });
 
 app.use(cors(corsOptions));
@@ -40,9 +43,9 @@ app.use(
   session({
     // secret: "mysecret",
     secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
-    // cookie: {
-    //   maxAge: 1000 * 60 * 60 * 24, // 1 day
-    // },
+    cookie: {
+      maxAge: 1000 * 60 * 60 * 24, // 1 day
+    },
     resave: false,
     saveUninitialized: false,
     store: store,
@@ -92,6 +95,28 @@ io.on("connection", (socket) => {
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
 
+app.get("/all", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ message: "Debe iniciar sesión para ver las reservas" });
+    }
+
+    const userReservations = await Reservation.find({ user: userId });
+    res.status(200).json({ userReservations });
+
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("allReservations", { userReservations });
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 app.post("/create-reservation", async (req, res) => {
   try {
     const {
@@ -257,32 +282,32 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-router.get("/total-sales/:month", async (req, res) => {
+app.get("/total-sales/:month", async (req, res) => {
   try {
     const { month } = req.params;
-    const startDate = new Date(new Date().getFullYear(), month - 1, 1);
-    const endDate = new Date(new Date().getFullYear(), month, 0);
+    const targetMonth = parseInt(month); // Convert month to a number
 
     const totalSales = await Reservation.aggregate([
       {
         $match: {
-          start: { $gte: startDate, $lte: endDate },
+          $expr: {
+            $eq: [{ $month: "$start" }, targetMonth], // Filter by month (e.g., July - month number 7)
+          },
         },
       },
       {
         $group: {
           _id: null,
-          totalAmount: { $sum: "$price" },
+          totalAmount: { $sum: { $toDouble: "$precioTotal" } },
         },
       },
     ]);
 
-    res
-      .status(200)
-      .json({
-        totalSales: totalSales.length > 0 ? totalSales[0].totalAmount : 0,
-      });
+    res.status(200).json({
+      totalSales: totalSales.length > 0 ? totalSales[0].totalAmount : 0,
+    });
   } catch (error) {
+    console.error("Error calculating total sales:", error);
     res.status(500).json({ error: error.message });
   }
 });
