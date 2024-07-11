@@ -276,7 +276,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
         id: reservationId,
       });
     });
-
+    console.log(userSockets);
     res.status(200).json({
       message: "Reservation deleted successfully",
       reservation: {
