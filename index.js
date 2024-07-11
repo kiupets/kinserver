@@ -166,6 +166,7 @@ app.post("/create-reservation", async (req, res) => {
     });
 
     await reservation.save();
+    await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
@@ -233,7 +234,8 @@ app.put("/update-reservation/:id", async (req, res) => {
     if (!updatedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
-
+    await updatedReservation.save();
+    await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
@@ -262,7 +264,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const deletedReservation = await Reservation.findByIdAndDelete(
       reservationId
     );
-
+    await updateAndEmitPaymentMethodTotals(userId);
     if (!deletedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
@@ -314,6 +316,100 @@ app.get("/total-sales/:month", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+app.get("/payment-method-totals/:month", async (req, res) => {
+  try {
+    const { month } = req.params;
+    const { userId } = req.query; // Add this line to get userId from query params
+    const targetMonth = parseInt(month);
+
+    const paymentMethodTotals = await Reservation.aggregate([
+      {
+        $match: {
+          $expr: {
+            $eq: [{ $month: "$start" }, targetMonth],
+          },
+          user: mongoose.Types.ObjectId(userId), // Add this line to filter by userId
+        },
+      },
+      {
+        $group: {
+          _id: "$paymentMethod",
+          total: { $sum: { $toDouble: "$precioTotal" } },
+        },
+      },
+    ]);
+
+    const result = {
+      efectivo: 0,
+      tarjeta: 0,
+      deposito: 0,
+    };
+
+    paymentMethodTotals.forEach((item) => {
+      if (item._id in result) {
+        result[item._id] = item.total;
+      }
+    });
+
+    // Emit the updated totals to the user's sockets
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("paymentMethodTotalsUpdated", {
+        userId: userId,
+        totals: result,
+      });
+    });
+
+    res.status(200).json({
+      message: "Payment method totals calculated successfully",
+      totals: result,
+    });
+  } catch (error) {
+    console.error("Error calculating payment method totals:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+async function updateAndEmitPaymentMethodTotals(userId) {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+
+  const paymentMethodTotals = await Reservation.aggregate([
+    {
+      $match: {
+        $expr: {
+          $eq: [{ $month: "$start" }, currentMonth],
+        },
+        user: mongoose.Types.ObjectId(userId),
+      },
+    },
+    {
+      $group: {
+        _id: "$paymentMethod",
+        total: { $sum: { $toDouble: "$precioTotal" } },
+      },
+    },
+  ]);
+
+  const result = {
+    efectivo: 0,
+    tarjeta: 0,
+    deposito: 0,
+  };
+
+  paymentMethodTotals.forEach((item) => {
+    if (item._id in result) {
+      result[item._id] = item.total;
+    }
+  });
+
+  const userSockets = connectedUsers.filter((user) => user.user === userId);
+  userSockets.forEach((userSocket) => {
+    io.to(userSocket.socketId).emit("paymentMethodTotalsUpdated", {
+      userId: userId,
+      totals: result,
+    });
+  });
+}
 server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
