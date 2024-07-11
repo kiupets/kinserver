@@ -225,6 +225,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         nombre_recepcionista,
         montoPendiente,
         dni,
+        paymentMethod,
       },
       { new: true }
     );
