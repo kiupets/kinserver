@@ -72,6 +72,11 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     // required: true,
   },
+  paymentMethod: {
+    type: String,
+    enum: ["efectivo", "tarjeta", "deposito"],
+    required: true,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);

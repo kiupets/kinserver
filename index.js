@@ -162,6 +162,7 @@ app.post("/create-reservation", async (req, res) => {
       nombre_recepcionista,
       montoPendiente,
       dni,
+      paymentMethod,
     });
 
     await reservation.save();
@@ -202,6 +203,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       nombre_recepcionista,
       montoPendiente,
       dni,
+      paymentMethod,
     } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
