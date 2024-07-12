@@ -235,8 +235,8 @@ app.put("/update-reservation/:id", async (req, res) => {
     if (!updatedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
-    await updatedReservation.save();
-    await updateAndEmitPaymentMethodTotals(userId);
+    // await updatedReservation.save();
+    // await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
@@ -265,7 +265,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const deletedReservation = await Reservation.findByIdAndDelete(
       reservationId
     );
-    await updateAndEmitPaymentMethodTotals(userId);
+    // await updateAndEmitPaymentMethodTotals(userId);
     if (!deletedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
