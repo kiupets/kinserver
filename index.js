@@ -137,6 +137,7 @@ app.post("/create-reservation", async (req, res) => {
       nombre_recepcionista,
       montoPendiente,
       dni,
+      paymentMethod,
     } = req.body;
     if (!userId) {
       return res
