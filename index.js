@@ -167,7 +167,7 @@ app.post("/create-reservation", async (req, res) => {
     });
 
     await reservation.save();
-    await updateAndEmitPaymentMethodTotals(userId);
+    // await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
