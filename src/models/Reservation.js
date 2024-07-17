@@ -77,6 +77,19 @@ const reservationSchema = new mongoose.Schema({
     enum: ["efectivo", "tarjeta", "deposito"],
     required: true,
   },
+  roomType: {
+    type: String,
+    enum: ["individual", "doble", "triple", "cuadruple"],
+    required: true,
+  },
+  numberOfGuests: {
+    type: Number,
+    // required: true,
+  },
+  guestNames: {
+    type: [String],
+    // required: true,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);

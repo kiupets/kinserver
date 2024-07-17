@@ -12,6 +12,7 @@ const User = require("./src/models/User");
 const uuid = require("uuid");
 const app = express();
 const PORT = process.env.PORT || 8000;
+const mongoose = require("mongoose");
 const connectedUsers = [];
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,8 +27,8 @@ const corsOptions = {
 const server = http.createServer(app);
 
 const store = new MongoDBStore({
-  uri: process.env.MONGODB_URI,
-  // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
+  // uri: process.env.MONGODB_URI,
+  uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
 const io = new Server(server, {
@@ -41,8 +42,8 @@ app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(
   session({
-    // secret: "mysecret",
-    secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
+    secret: "mysecret",
+    // secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
@@ -117,6 +118,7 @@ app.get("/all", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.post("/create-reservation", async (req, res) => {
   try {
     const {
@@ -138,6 +140,9 @@ app.post("/create-reservation", async (req, res) => {
       montoPendiente,
       dni,
       paymentMethod,
+      numberOfGuests,
+      guestNames,
+      roomType,
     } = req.body;
     if (!userId) {
       return res
@@ -164,10 +169,13 @@ app.post("/create-reservation", async (req, res) => {
       montoPendiente,
       dni,
       paymentMethod,
+      numberOfGuests,
+      guestNames,
+      roomType,
     });
 
     await reservation.save();
-    // await updateAndEmitPaymentMethodTotals(userId);
+    await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
@@ -184,6 +192,7 @@ app.post("/create-reservation", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
@@ -206,6 +215,9 @@ app.put("/update-reservation/:id", async (req, res) => {
       montoPendiente,
       dni,
       paymentMethod,
+      numberOfGuests,
+      guestNames,
+      roomType,
     } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
@@ -228,6 +240,9 @@ app.put("/update-reservation/:id", async (req, res) => {
         montoPendiente,
         dni,
         paymentMethod,
+        numberOfGuests,
+        guestNames,
+        roomType,
       },
       { new: true }
     );
@@ -235,8 +250,8 @@ app.put("/update-reservation/:id", async (req, res) => {
     if (!updatedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
-    // await updatedReservation.save();
-    // await updateAndEmitPaymentMethodTotals(userId);
+    await updatedReservation.save();
+    await updateAndEmitPaymentMethodTotals(userId);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
@@ -257,6 +272,7 @@ app.put("/update-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.delete("/delete-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
@@ -265,7 +281,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const deletedReservation = await Reservation.findByIdAndDelete(
       reservationId
     );
-    // await updateAndEmitPaymentMethodTotals(userId);
+    await updateAndEmitPaymentMethodTotals(userId);
     if (!deletedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
@@ -288,6 +304,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.get("/total-sales/:month", async (req, res) => {
   try {
     const { month } = req.params;
@@ -317,11 +334,14 @@ app.get("/total-sales/:month", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 app.get("/payment-method-totals/:month", async (req, res) => {
   try {
     const { month } = req.params;
-    const { userId } = req.query; // Add this line to get userId from query params
+    const { userId } = req.query;
     const targetMonth = parseInt(month);
+
+    console.log(`Querying for month: ${targetMonth}, userId: ${userId}`);
 
     const paymentMethodTotals = await Reservation.aggregate([
       {
@@ -329,7 +349,7 @@ app.get("/payment-method-totals/:month", async (req, res) => {
           $expr: {
             $eq: [{ $month: "$start" }, targetMonth],
           },
-          user: mongoose.Types.ObjectId(userId), // Add this line to filter by userId
+          user: new mongoose.Types.ObjectId(userId),
         },
       },
       {
@@ -339,6 +359,8 @@ app.get("/payment-method-totals/:month", async (req, res) => {
         },
       },
     ]);
+
+    console.log("Aggregation result:", paymentMethodTotals);
 
     const result = {
       efectivo: 0,
@@ -352,14 +374,7 @@ app.get("/payment-method-totals/:month", async (req, res) => {
       }
     });
 
-    // Emit the updated totals to the user's sockets
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("paymentMethodTotalsUpdated", {
-        userId: userId,
-        totals: result,
-      });
-    });
+    console.log("Final result:", result);
 
     res.status(200).json({
       message: "Payment method totals calculated successfully",
@@ -380,7 +395,7 @@ async function updateAndEmitPaymentMethodTotals(userId) {
         $expr: {
           $eq: [{ $month: "$start" }, currentMonth],
         },
-        user: mongoose.Types.ObjectId(userId),
+        user: new mongoose.Types.ObjectId(userId),
       },
     },
     {
