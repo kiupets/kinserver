@@ -95,7 +95,7 @@ const reservationSchema = new mongoose.Schema({
     // required: true,
   },
   surname: {
-    type: [String],
+    type: String,
     // required: true,
   },
 });
