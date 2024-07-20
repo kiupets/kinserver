@@ -64,6 +64,10 @@ const reservationSchema = new mongoose.Schema({
     type: Boolean,
     // default: false,
   },
+  isBooking: {
+    type: Boolean,
+    // default: false,
+  },
   nombre_recepcionista: {
     type: String,
     // required: true,

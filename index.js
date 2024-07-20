@@ -143,6 +143,7 @@ app.post("/create-reservation", async (req, res) => {
       numberOfGuests,
       guestNames,
       roomType,
+      isBooking,
     } = req.body;
     if (!userId) {
       return res
@@ -160,10 +161,11 @@ app.post("/create-reservation", async (req, res) => {
       end,
       time,
       isOverlapping,
-      price,
-      nights,
+      price: parseFloat(price),
+      nights: parseInt(nights, 10),
+      precioTotal: parseFloat(precioTotal),
       comments,
-      precioTotal,
+
       adelanto,
       nombre_recepcionista,
       montoPendiente,
@@ -172,6 +174,7 @@ app.post("/create-reservation", async (req, res) => {
       numberOfGuests,
       guestNames,
       roomType,
+      isBooking,
     });
 
     await reservation.save();
@@ -218,6 +221,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       numberOfGuests,
       guestNames,
       roomType,
+      isBooking,
     } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
@@ -231,10 +235,11 @@ app.put("/update-reservation/:id", async (req, res) => {
         end,
         time,
         isOverlapping,
-        price,
-        nights,
+
         comments,
-        precioTotal,
+        price: parseFloat(price),
+        nights: parseInt(nights, 10),
+        precioTotal: parseFloat(precioTotal),
         adelanto,
         nombre_recepcionista,
         montoPendiente,
@@ -243,6 +248,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         numberOfGuests,
         guestNames,
         roomType,
+        isBooking,
       },
       { new: true }
     );
