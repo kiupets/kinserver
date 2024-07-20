@@ -144,6 +144,7 @@ app.post("/create-reservation", async (req, res) => {
       guestNames,
       roomType,
       isBooking,
+      surname,
     } = req.body;
     if (!userId) {
       return res
@@ -175,6 +176,7 @@ app.post("/create-reservation", async (req, res) => {
       guestNames,
       roomType,
       isBooking,
+      surname,
     });
 
     await reservation.save();
@@ -222,6 +224,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       guestNames,
       roomType,
       isBooking,
+      surname,
     } = req.body;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
@@ -249,6 +252,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         guestNames,
         roomType,
         isBooking,
+        surname,
       },
       { new: true }
     );

@@ -94,6 +94,10 @@ const reservationSchema = new mongoose.Schema({
     type: [String],
     // required: true,
   },
+  surname: {
+    type: [String],
+    // required: true,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
