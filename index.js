@@ -27,8 +27,8 @@ const corsOptions = {
 const server = http.createServer(app);
 
 const store = new MongoDBStore({
-  uri: process.env.MONGODB_URI,
-  // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
+  // uri: process.env.MONGODB_URI,
+  uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
 const io = new Server(server, {
@@ -42,8 +42,8 @@ app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(
   session({
-    // secret: "mysecret",
-    secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
+    secret: "mysecret",
+    // secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
@@ -55,7 +55,6 @@ app.use(
 
 io.on("connection", (socket) => {
   socket.on("login", (userId) => {
-    console.log(`User ${userId} logged in`);
     // Buscar si el usuario ya está en el array
     // Verifica si el usuario ya está en la lista de usuarios conectados
     const existingUserIndex = connectedUsers.findIndex(
@@ -166,7 +165,6 @@ app.post("/create-reservation", async (req, res) => {
       nights: parseInt(nights, 10),
       precioTotal: parseFloat(precioTotal),
       comments,
-
       adelanto,
       nombre_recepcionista,
       montoPendiente,
