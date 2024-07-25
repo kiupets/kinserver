@@ -27,8 +27,8 @@ const corsOptions = {
 const server = http.createServer(app);
 
 const store = new MongoDBStore({
-  uri: process.env.MONGODB_URI,
-  // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
+  // uri: process.env.MONGODB_URI,
+  uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
 const io = new Server(server, {
@@ -144,6 +144,8 @@ app.post("/create-reservation", async (req, res) => {
       roomType,
       isBooking,
       surname,
+      billingStatus,
+      housekeepingStatus,
     } = req.body;
     if (!userId) {
       return res
@@ -175,6 +177,8 @@ app.post("/create-reservation", async (req, res) => {
       roomType,
       isBooking,
       surname,
+      billingStatus,
+      housekeepingStatus,
     });
 
     await reservation.save();
@@ -223,43 +227,64 @@ app.put("/update-reservation/:id", async (req, res) => {
       roomType,
       isBooking,
       surname,
+      billingStatus,
+      housekeepingStatus,
     } = req.body;
+
+    // Crear un objeto con los campos que se van a actualizar
+    const updateFields = {};
+    if (price !== undefined) {
+      const parsedPrice = parseFloat(price);
+      if (!isNaN(parsedPrice)) {
+        updateFields.price = parsedPrice;
+      } else {
+        return res.status(400).json({ message: "Invalid price value" });
+      }
+    }
+    // Añadir todos los campos al objeto de actualización si están presentes
+    if (name !== undefined) updateFields.name = name;
+    if (email !== undefined) updateFields.email = email;
+    if (phone !== undefined) updateFields.phone = phone;
+    if (room !== undefined) updateFields.room = room;
+    if (start !== undefined) updateFields.start = start;
+    if (end !== undefined) updateFields.end = end;
+    if (isOverlapping !== undefined) updateFields.isOverlapping = isOverlapping;
+    if (price !== undefined) updateFields.price = parseFloat(price);
+    if (nights !== undefined) updateFields.nights = parseInt(nights, 10);
+    if (time !== undefined) updateFields.time = time;
+    if (comments !== undefined) updateFields.comments = comments;
+    if (precioTotal !== undefined)
+      updateFields.precioTotal = parseFloat(precioTotal);
+    if (adelanto !== undefined) updateFields.adelanto = adelanto;
+    if (nombre_recepcionista !== undefined)
+      updateFields.nombre_recepcionista = nombre_recepcionista;
+    if (montoPendiente !== undefined)
+      updateFields.montoPendiente = montoPendiente;
+    if (dni !== undefined) updateFields.dni = dni;
+    if (paymentMethod !== undefined) updateFields.paymentMethod = paymentMethod;
+    if (numberOfGuests !== undefined)
+      updateFields.numberOfGuests = numberOfGuests;
+    if (guestNames !== undefined) updateFields.guestNames = guestNames;
+    if (roomType !== undefined) updateFields.roomType = roomType;
+    if (isBooking !== undefined) updateFields.isBooking = isBooking;
+    if (surname !== undefined) updateFields.surname = surname;
+    if (billingStatus !== undefined) updateFields.billingStatus = billingStatus;
+    if (housekeepingStatus !== undefined)
+      updateFields.housekeepingStatus = housekeepingStatus;
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
-      {
-        name,
-        email,
-        phone,
-        room,
-        start,
-        end,
-        time,
-        isOverlapping,
-
-        comments,
-        price: parseFloat(price),
-        nights: parseInt(nights, 10),
-        precioTotal: parseFloat(precioTotal),
-        adelanto,
-        nombre_recepcionista,
-        montoPendiente,
-        dni,
-        paymentMethod,
-        numberOfGuests,
-        guestNames,
-        roomType,
-        isBooking,
-        surname,
-      },
+      updateFields,
       { new: true }
     );
 
     if (!updatedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
+
     await updatedReservation.save();
     await updateAndEmitPaymentMethodTotals(userId);
+
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {

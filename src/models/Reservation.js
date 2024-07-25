@@ -98,6 +98,14 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     // required: true,
   },
+  billingStatus: {
+    type: String,
+    // required: true,
+  },
+  housekeepingStatus: {
+    type: String,
+    // required: true,
+  },
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);

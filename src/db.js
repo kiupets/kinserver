@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 
-const MONGO_URI = process.env.MONGODB_URI;
+// const MONGO_URI = process.env.MONGODB_URI;
 
 mongoose
   .connect(
-    // "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
-    MONGO_URI,
+    "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
+    // MONGO_URI,
     {
       useNewUrlParser: true,
       useUnifiedTopology: true,
