@@ -95,11 +95,9 @@ const isAuthenticated = (req, res, next) => {
 
 router.post("/create-reservation", async (req, res) => {
   try {
-    console.log(connectedUsers);
     const userId = req.session.userId; // Obtener el ID del usuario desde la sesión
 
     if (!userId) {
-      console.log("dale dale user");
       return res
         .status(401)
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
@@ -131,7 +129,6 @@ router.post("/create-reservation", async (req, res) => {
     // Emitir un evento a través de socket.io solo al usuario logeado
     if (req.io && connectedUsers) {
       // const socketsToSendTo = Object.values(connectedUsers);
-      console.log(connectedUsers, "reqqqqqqqqqqqqqqqqq");
       // for (const socketId of socketsToSendTo) {
       //   req.io.to(socketId).emit("chupeteINFRONT", reservation);
       // }

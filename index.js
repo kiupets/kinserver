@@ -27,8 +27,8 @@ const corsOptions = {
 const server = http.createServer(app);
 
 const store = new MongoDBStore({
-  // uri: process.env.MONGODB_URI,
-  uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
+  uri: process.env.MONGODB_URI,
+  // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
 const io = new Server(server, {
@@ -42,8 +42,8 @@ app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(
   session({
-    secret: "mysecret",
-    // secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
+    // secret: "mysecret",
+    secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
     cookie: {
       maxAge: 1000 * 60 * 60 * 24, // 1 day
     },
