@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 
+const Schema = mongoose.Schema;
 const reservationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -15,7 +16,7 @@ const reservationSchema = new mongoose.Schema({
     // required: true,
   },
   phone: {
-    type: String,
+    type: Schema.Types.Mixed,
     // required: true,
   },
   room: {
@@ -44,7 +45,7 @@ const reservationSchema = new mongoose.Schema({
     // required: true,
   },
   dni: {
-    type: Number,
+    type: Schema.Types.Mixed,
     // required: true,
     // unique: true,
   },
