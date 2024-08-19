@@ -231,50 +231,45 @@ app.put("/update-reservation/:id", async (req, res) => {
       housekeepingStatus,
     } = req.body;
 
-    // Crear un objeto con los campos que se van a actualizar
-    const updateFields = {};
-    if (price !== undefined) {
-      const parsedPrice = parseFloat(price);
-      if (!isNaN(parsedPrice)) {
-        updateFields.price = parsedPrice;
-      } else {
-        return res.status(400).json({ message: "Invalid price value" });
-      }
+    const updateData = {
+      user: userId,
+      name,
+      email,
+      phone,
+      room,
+      start,
+      end,
+      time,
+      isOverlapping,
+      comments,
+      adelanto,
+      nombre_recepcionista,
+      montoPendiente,
+      dni,
+      paymentMethod,
+      numberOfGuests,
+      guestNames,
+      roomType,
+      isBooking,
+      surname,
+      billingStatus,
+      housekeepingStatus,
+    };
+
+    // Manejar campos numéricos
+    if (price !== undefined && !isNaN(parseFloat(price))) {
+      updateData.price = parseFloat(price);
     }
-    // Añadir todos los campos al objeto de actualización si están presentes
-    if (name !== undefined) updateFields.name = name;
-    if (email !== undefined) updateFields.email = email;
-    if (phone !== undefined) updateFields.phone = phone;
-    if (room !== undefined) updateFields.room = room;
-    if (start !== undefined) updateFields.start = start;
-    if (end !== undefined) updateFields.end = end;
-    if (isOverlapping !== undefined) updateFields.isOverlapping = isOverlapping;
-    if (price !== undefined) updateFields.price = parseFloat(price);
-    if (nights !== undefined) updateFields.nights = parseInt(nights, 10);
-    if (time !== undefined) updateFields.time = time;
-    if (comments !== undefined) updateFields.comments = comments;
-    if (precioTotal !== undefined)
-      updateFields.precioTotal = parseFloat(precioTotal);
-    if (adelanto !== undefined) updateFields.adelanto = adelanto;
-    if (nombre_recepcionista !== undefined)
-      updateFields.nombre_recepcionista = nombre_recepcionista;
-    if (montoPendiente !== undefined)
-      updateFields.montoPendiente = montoPendiente;
-    if (dni !== undefined) updateFields.dni = dni;
-    if (paymentMethod !== undefined) updateFields.paymentMethod = paymentMethod;
-    if (numberOfGuests !== undefined)
-      updateFields.numberOfGuests = numberOfGuests;
-    if (guestNames !== undefined) updateFields.guestNames = guestNames;
-    if (roomType !== undefined) updateFields.roomType = roomType;
-    if (isBooking !== undefined) updateFields.isBooking = isBooking;
-    if (surname !== undefined) updateFields.surname = surname;
-    if (billingStatus !== undefined) updateFields.billingStatus = billingStatus;
-    if (housekeepingStatus !== undefined)
-      updateFields.housekeepingStatus = housekeepingStatus;
+    if (nights !== undefined && !isNaN(parseInt(nights))) {
+      updateData.nights = parseInt(nights);
+    }
+    if (precioTotal !== undefined && !isNaN(parseFloat(precioTotal))) {
+      updateData.precioTotal = parseFloat(precioTotal);
+    }
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
-      updateFields,
+      updateData,
       { new: true }
     );
 
@@ -282,7 +277,6 @@ app.put("/update-reservation/:id", async (req, res) => {
       return res.status(404).json({ message: "Reservation not found" });
     }
 
-    await updatedReservation.save();
     await updateAndEmitPaymentMethodTotals(userId);
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
@@ -326,7 +320,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
         id: reservationId,
       });
     });
-    console.log(userSockets);
+
     res.status(200).json({
       message: "Reservation deleted successfully",
       reservation: {
@@ -374,8 +368,6 @@ app.get("/payment-method-totals/:month", async (req, res) => {
     const { userId } = req.query;
     const targetMonth = parseInt(month);
 
-    console.log(`Querying for month: ${targetMonth}, userId: ${userId}`);
-
     const paymentMethodTotals = await Reservation.aggregate([
       {
         $match: {
@@ -393,8 +385,6 @@ app.get("/payment-method-totals/:month", async (req, res) => {
       },
     ]);
 
-    console.log("Aggregation result:", paymentMethodTotals);
-
     const result = {
       efectivo: 0,
       tarjeta: 0,
@@ -406,8 +396,6 @@ app.get("/payment-method-totals/:month", async (req, res) => {
         result[item._id] = item.total;
       }
     });
-
-    console.log("Final result:", result);
 
     res.status(200).json({
       message: "Payment method totals calculated successfully",
