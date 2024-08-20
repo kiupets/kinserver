@@ -20,7 +20,7 @@ const reservationSchema = new mongoose.Schema({
     // required: true,
   },
   room: {
-    type: String,
+    type: [String],
     // required: true,
   },
   start: {

@@ -124,7 +124,7 @@ app.post("/create-reservation", async (req, res) => {
       name,
       email,
       phone,
-      room,
+      room, // Este es ahora un array de habitaciones
       start,
       end,
       isOverlapping,
@@ -147,59 +147,70 @@ app.post("/create-reservation", async (req, res) => {
       billingStatus,
       housekeepingStatus,
     } = req.body;
+
     if (!userId) {
       return res
         .status(401)
         .json({ message: "Debe iniciar sesión para hacer una reserva" });
     }
 
-    const reservation = new Reservation({
-      user: userId,
-      name,
-      email,
-      phone,
-      room,
-      start,
-      end,
-      time,
-      isOverlapping,
-      price: parseFloat(price),
-      nights: parseInt(nights, 10),
-      precioTotal: parseFloat(precioTotal),
-      comments,
-      adelanto,
-      nombre_recepcionista,
-      montoPendiente,
-      dni,
-      paymentMethod,
-      numberOfGuests,
-      guestNames,
-      roomType,
-      isBooking,
-      surname,
-      billingStatus,
-      housekeepingStatus,
-    });
+    const createdReservations = [];
 
-    await reservation.save();
-    await updateAndEmitPaymentMethodTotals(userId);
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    // Crear una reserva por cada habitación
+    for (const singleRoom of room) {
+      const reservation = new Reservation({
+        user: userId,
+        name,
+        email,
+        phone,
+        room: singleRoom, // Usar la habitación individual aquí
+        start,
+        end,
+        time,
+        isOverlapping,
+        price: parseFloat(price),
+        nights: parseInt(nights, 10),
+        precioTotal: parseFloat(precioTotal),
+        comments,
+        adelanto,
+        nombre_recepcionista,
+        montoPendiente,
+        dni,
+        paymentMethod,
+        numberOfGuests,
+        guestNames,
+        roomType,
+        isBooking,
+        surname,
+        billingStatus,
+        housekeepingStatus,
+      });
 
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", {
+      await reservation.save();
+      createdReservations.push({
         ...reservation.toObject(),
         id: reservation._id,
       });
+    }
+
+    await updateAndEmitPaymentMethodTotals(userId);
+
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationCreated", [
+        ...createdReservations,
+      ]);
     });
+
     res.status(200).json({
-      message: "Reservation created successfully",
-      reservation: { ...reservation.toObject(), id: reservation._id },
+      message: "Reservations created successfully",
+      reservations: createdReservations,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
 app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
