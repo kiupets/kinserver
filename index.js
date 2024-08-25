@@ -16,7 +16,7 @@ const mongoose = require("mongoose");
 const connectedUsers = [];
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+const xlsx = require("xlsx");
 const cors = require("cors");
 
 const corsOptions = {
@@ -414,6 +414,120 @@ app.get("/payment-method-totals/:month", async (req, res) => {
     });
   } catch (error) {
     console.error("Error calculating payment method totals:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+const cellStyles = {
+  fecha: { fill: { fgColor: { rgb: "FFFF00" } } }, // Amarillo
+  nombre: { fill: { fgColor: { rgb: "00FF00" } } }, // Verde
+  pago: { fill: { fgColor: { rgb: "0000FF" } } }, // Azul
+  estadia: { fill: { fgColor: { rgb: "FF00FF" } } }, // Magenta
+  habitacion: { fill: { fgColor: { rgb: "00FFFF" } } }, // Cian
+  efectivo: { fill: { fgColor: { rgb: "FF0000" } } }, // Rojo
+  tarjeta: { fill: { fgColor: { rgb: "FFA500" } } }, // Naranja
+  transferencia: { fill: { fgColor: { rgb: "800080" } } }, // Púrpura
+};
+app.get("/export-excel", async (req, res) => {
+  try {
+    // Obtener todas las reservas de la base de datos
+    const reservations = await Reservation.find({});
+
+    // Crear un nuevo libro de Excel
+    const workbook = xlsx.utils.book_new();
+    // Definir los estilos de celda
+    const cellStyles = {
+      fecha: { fill: { fgColor: { rgb: "FFFF00" } } }, // Amarillo
+      nombre: { fill: { fgColor: { rgb: "00FF00" } } }, // Verde
+      pago: { fill: { fgColor: { rgb: "0000FF" } } }, // Azul
+      estadia: { fill: { fgColor: { rgb: "FF00FF" } } }, // Magenta
+      habitacion: { fill: { fgColor: { rgb: "00FFFF" } } }, // Cian
+      efectivo: { fill: { fgColor: { rgb: "FF0000" } } }, // Rojo
+      tarjeta: { fill: { fgColor: { rgb: "FFA500" } } }, // Naranja
+      transferencia: { fill: { fgColor: { rgb: "800080" } } }, // Púrpura
+    };
+    // Crear una nueva hoja en el libro
+    // Crear una nueva hoja en el libro
+
+    const worksheet = xlsx.utils.json_to_sheet([
+      [
+        "fecha",
+        "nombre",
+        "pago",
+        "estadia",
+        "habitacion",
+        "efectivo",
+        "tarjeta",
+        "transferencia",
+      ],
+    ]);
+
+    // Aplicar los estilos a las celdas del encabezado
+    Object.keys(cellStyles).forEach((key, index) => {
+      const cellAddress = xlsx.utils.encode_cell({ c: index, r: 0 });
+      worksheet[cellAddress].s = {
+        ...worksheet[cellAddress].s,
+        ...cellStyles[key],
+      };
+    });
+
+    // Agregar los datos de las reservas al worksheet
+    const data = reservations.map((reservation) => ({
+      fecha: reservation.start,
+      nombre: `${reservation.name} ${reservation.surname}`,
+      pago: reservation.paymentMethod,
+      estadia: reservation.nights,
+      habitacion: reservation.room,
+      efectivo:
+        reservation.paymentMethod === "efectivo" ? reservation.precioTotal : 0,
+      tarjeta:
+        reservation.paymentMethod === "tarjeta" ? reservation.precioTotal : 0,
+      transferencia:
+        reservation.paymentMethod === "deposito" ? reservation.precioTotal : 0,
+    }));
+
+    xlsx.utils.sheet_add_json(worksheet, data, { origin: "A2" });
+
+    // Ajustar el ancho de las columnas
+    worksheet["!cols"] = [
+      { wch: 20 }, // Fecha
+      { wch: 30 }, // Nombre
+      { wch: 10 }, // Pago
+      { wch: 10 }, // Estadia
+      { wch: 10 }, // Habitación
+      { wch: 10 }, // Efectivo
+      { wch: 10 }, // Tarjeta
+      { wch: 10 }, // Transferencia
+    ];
+
+    // Aplicar los estilos a las celdas
+    // Aplicar los estilos a las celdas
+    Object.keys(cellStyles).forEach((key, index) => {
+      const cellAddress = xlsx.utils.encode_cell({ c: index, r: 0 });
+      if (worksheet[cellAddress]) {
+        worksheet[cellAddress].s = {
+          ...worksheet[cellAddress].s,
+          ...cellStyles[key],
+        };
+      }
+    });
+
+    // Agregar el worksheet al libro
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Reservas");
+
+    // Generar el archivo Excel
+    const excelBuffer = xlsx.write(workbook, {
+      type: "buffer",
+      bookType: "xlsx",
+    });
+
+    // Enviar el archivo Excel como respuesta
+    res.set(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.set("Content-Disposition", "attachment; filename=reservas.xlsx");
+    res.send(excelBuffer);
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
