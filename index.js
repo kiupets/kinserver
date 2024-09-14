@@ -114,6 +114,7 @@ app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
 // Add this route before your other route definitions
 app.get('/check-session', (req, res) => {
+  console.log('Session:', req.session);
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
@@ -129,9 +130,10 @@ app.get("/all", async (req, res) => {
     if (!req.session || !req.session.userId) {
       return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
     }
-
+    console.log(userId, req.session.userId)
     // Verify that the userId matches the one in the session
     if (userId !== req.session.userId.toString()) {
+      
       console.log('Session userId:', req.session.userId, 'Request userId:', userId);
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
@@ -150,6 +152,7 @@ app.get("/all", async (req, res) => {
 });
 
 app.post("/create-reservation", async (req, res) => {
+  console.log('Session:', req.session);
   try {
     const { reservationData } = req.body;
     const userId = req.query.userId;
