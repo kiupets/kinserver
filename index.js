@@ -10,6 +10,7 @@ const Reservation = require("./src/models/Reservation");
 const http = require("http");
 const User = require("./src/models/User");
 const uuid = require("uuid");
+const path = require("path"); // Import path module
 const app = express();
 const PORT = process.env.PORT || 8000;
 const mongoose = require("mongoose");
@@ -20,7 +21,7 @@ const xlsx = require("xlsx");
 const cors = require("cors");
 
 const corsOptions = {
-  origin: "http://localhost:3000",
+  origin: "http://localhost:3000", // Update this for production
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
@@ -28,16 +29,14 @@ const server = http.createServer(app);
 
 const store = new MongoDBStore({
   uri: process.env.MONGODB_URI,
-  // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
 store.on('error', function(error) {
   console.log(error);
 });
 const io = new Server(server, {
-  // cors: { origin: "*", methods: ["GET", "POST"] },
   cors: {
-    origin: "http://localhost:3000",
+    origin: "http://localhost:3000", // Update this for production
     credentials: true,
   },
 });
@@ -45,7 +44,7 @@ const io = new Server(server, {
 app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(session({
-  secret: process.env.SESSION_SECRET || "your-default-secret", // Add this line
+  secret: process.env.SESSION_SECRET || "your-default-secret",
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
@@ -581,7 +580,7 @@ app.get('/check-session', (req, res) => {
 
 // Make sure this is at the end of your route definitions
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  res.sendFile(path.join(__dirname, 'build', 'index.html')); // Use path to resolve the file
 });
 
 server.listen(PORT, () => {
