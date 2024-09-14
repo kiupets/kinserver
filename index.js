@@ -113,6 +113,7 @@ app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
 
 app.get("/all", async (req, res) => {
+  console.log('Session:', req.session); 
   try {
     const userId = req.query.userId;
 
@@ -591,3 +592,7 @@ server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
 module.exports.connectedUsers = connectedUsers;
+
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("SESSION_SECRET:", process.env.SESSION_SECRET);
+console.log("MONGODB_URI:", process.env.MONGODB_URI);
