@@ -51,8 +51,8 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "your-default-secret",
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    // httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: 'lax',
   },
   resave: false,
@@ -62,6 +62,7 @@ app.use(session({
 
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
+  console.log("userId from connection: : ,  ",userId)
   console.log(`User connected with userId: ${userId}`);
 
   // Verifica si el usuario ya está en la lista de usuarios conectados
@@ -109,8 +110,15 @@ const authenticateUser = (req, res, next) => {
     res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
   }
 };
-
+if (process.env.NODE_ENV === "production") {
+  // Production-specific logic
+  console.log("proproproduction")
+} else {
+  // Development-specific logic
+}
 app.use("/auth", authRoutes);
+
+
 app.use("/reservations", reservationRoutes);
 // Add this route before your other route definitions
 app.get('/check-session', (req, res) => {
@@ -125,12 +133,12 @@ app.get("/all", async (req, res) => {
   console.log('Session:', req.session); 
   try {
     const userId = req.query.userId;
-
+    console.log("userId:",userId, "sessionId:",req.session.userId,"queryId:",req.query.userId)
     // Check if the user is logged in
     if (!req.session || !req.session.userId) {
       return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
     }
-    console.log(userId, req.session.userId)
+   
     // Verify that the userId matches the one in the session
     if (userId !== req.session.userId.toString()) {
       
