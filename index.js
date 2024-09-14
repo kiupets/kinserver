@@ -31,49 +31,54 @@ const store = new MongoDBStore({
   // uri: "mongodb+srv://kiupets:julietaygonzalo2023@cluster0.cpgytzo.mongodb.net/db-name?retryWrites=true&w=majority",
   collection: "mySessions",
 });
+store.on('error', function(error) {
+  console.log(error);
+});
 const io = new Server(server, {
   // cors: { origin: "*", methods: ["GET", "POST"] },
   cors: {
     origin: "http://localhost:3000",
+    credentials: true,
   },
 });
 
 app.use(cors(corsOptions));
 app.use(express.static("build"));
-app.use(
-  session({
-    // secret: "mysecret",
-    secret: process.env.SESSION_SECRET || "miCadenaSecretaPorDefecto",
-    cookie: {
-      maxAge: 1000 * 60 * 60 * 24, // 1 day
-    },
-    resave: false,
-    saveUninitialized: false,
-    store: store,
-  })
-);
+app.use(session({
+  // secret: "mysecret",
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: 'lax',
+  },
+  resave: false,
+  saveUninitialized: false,
+  store: store,
+}));
 
 io.on("connection", (socket) => {
-  socket.on("login", (userId) => {
-    // Buscar si el usuario ya está en el array
-    // Verifica si el usuario ya está en la lista de usuarios conectados
-    const existingUserIndex = connectedUsers.findIndex(
-      (user) => user.user === userId
-    );
-    if (existingUserIndex === -1) {
-      // Si el usuario no está presente, crea una nueva entrada en el array
-      connectedUsers.push({ user: userId, socketId: [socket.id] });
+  const userId = socket.handshake.query.userId;
+  console.log(`User connected with userId: ${userId}`);
+
+  // Verifica si el usuario ya está en la lista de usuarios conectados
+  const existingUserIndex = connectedUsers.findIndex(
+    (user) => user.user === userId
+  );
+  if (existingUserIndex === -1) {
+    // Si el usuario no está presente, crea una nueva entrada en el array
+    connectedUsers.push({ user: userId, socketId: [socket.id] });
+  } else {
+    // Si el usuario ya está presente, verifica si el socket ya existe
+    if (!connectedUsers[existingUserIndex].socketId.includes(socket.id)) {
+      // Agrega el nuevo socket solo si no existe en la lista de sockets del usuario
+      connectedUsers[existingUserIndex].socketId.push(socket.id);
+      console.log(`User ${userId} reconnected with new socket.`);
     } else {
-      // Si el usuario ya está presente, verifica si el socket ya existe
-      if (!connectedUsers[existingUserIndex].socketId.includes(socket.id)) {
-        // Agrega el nuevo socket solo si no existe en la lista de sockets del usuario
-        connectedUsers[existingUserIndex].socketId.push(socket.id);
-        console.log(`User ${userId} reconnected with new socket.`);
-      } else {
-        console.log(`Socket ${socket.id} already exists for user ${userId}.`);
-      }
+      console.log(`Socket ${socket.id} already exists for user ${userId}.`);
     }
-  });
+  }
+
   socket.on("disconnect", () => {
     // Recorre la lista de usuarios conectados
     for (let i = 0; i < connectedUsers.length; i++) {
@@ -91,7 +96,16 @@ io.on("connection", (socket) => {
     }
   });
 });
-
+const authenticateUser = (req, res, next) => {
+  if (req.session && req.session.userId) {
+    if (req.session.userId !== req.query.userId) {
+      return res.status(403).json({ message: "Unauthorized access" });
+    }
+    next();
+  } else {
+    res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
+  }
+};
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
 
@@ -99,10 +113,15 @@ app.get("/all", async (req, res) => {
   try {
     const userId = req.query.userId;
 
-    if (!userId) {
-      return res
-        .status(401)
-        .json({ message: "Debe iniciar sesión para ver las reservas" });
+    // Check if the user is logged in
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
+    }
+
+    // Verify that the userId matches the one in the session
+    if (userId !== req.session.userId.toString()) {
+      console.log('Session userId:', req.session.userId, 'Request userId:', userId);
+      return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
     const userReservations = await Reservation.find({ user: userId });
@@ -120,22 +139,67 @@ app.get("/all", async (req, res) => {
 
 app.post("/create-reservation", async (req, res) => {
   try {
+    const { reservationData } = req.body;
+    const userId = req.query.userId;
+    console.log(reservationData, userId);
+
+    if (!reservationData) {
+      return res.status(400).json({ message: "Reservation data is missing" });
+    }
+
+    // Check if the user is logged in
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
+    }
+
+    // Verify that the userId matches the one in the session
+    if (userId !== req.session.userId.toString()) {
+      console.log('Session userId:', req.session.userId, 'Request userId:', userId);
+      return res.status(403).json({ message: "Usuario no autorizado" });
+    }
+
+    // Modify this part to handle multiple rooms
+    const reservations = Array.isArray(reservationData.room) 
+      ? reservationData.room.map(room => ({
+          ...reservationData,
+          room,
+          user: req.session.userId
+        }))
+      : [{ ...reservationData, user: req.session.userId }];
+
+    const createdReservations = await Reservation.insertMany(reservations);
+
+    // Emit the new reservations to connected clients
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      io.to(userSocket.socketId).emit("reservationCreated", createdReservations);
+    });
+
+    res.status(200).json({ message: "Reservations created successfully", reservations: createdReservations });
+  } catch (error) {
+    console.error('Error creating reservation:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/update-reservation/:id", async (req, res) => {
+  try {
+    const reservationId = req.params.id;
     const {
       name,
       email,
       phone,
-      room, // Este es ahora un array de habitaciones
+      rooms,
+      newRooms,
       start,
       end,
       isOverlapping,
       price,
       nights,
-      time,
-      userId,
       comments,
       precioTotal,
       adelanto,
-      nombre_recepcionista,
+      time,
       montoPendiente,
       dni,
       paymentMethod,
@@ -146,31 +210,39 @@ app.post("/create-reservation", async (req, res) => {
       surname,
       billingStatus,
       housekeepingStatus,
+      userId,
+      nombre_recepcionista,
     } = req.body;
 
-    if (!userId) {
-      return res
-        .status(401)
-        .json({ message: "Debe iniciar sesión para hacer una reserva" });
+    // Check if the user is logged in
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para actualizar una reserva" });
     }
 
-    const createdReservations = [];
+    // Verify that the userId matches the one in the session
+    if (userId !== req.session.userId.toString()) {
+      console.log('Session userId:', req.session.userId, 'Request userId:', userId);
+      return res.status(403).json({ message: "Usuario no autorizado" });
+    }
 
-    // Crear una reserva por cada habitación
-    for (const singleRoom of room) {
-      const reservation = new Reservation({
+    const existingReservation = await Reservation.findById(reservationId);
+    if (!existingReservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    // Update existing reservation
+    const updatedReservation = await Reservation.findByIdAndUpdate(
+      reservationId,
+      {
         user: userId,
         name,
         email,
         phone,
-        room: singleRoom, // Usar la habitación individual aquí
+        room: rooms,
         start,
         end,
         time,
         isOverlapping,
-        price: parseFloat(price),
-        nights: parseInt(nights, 10),
-        precioTotal: parseFloat(precioTotal),
         comments,
         adelanto,
         nombre_recepcionista,
@@ -184,127 +256,36 @@ app.post("/create-reservation", async (req, res) => {
         surname,
         billingStatus,
         housekeepingStatus,
-      });
-
-      await reservation.save();
-      createdReservations.push({
-        ...reservation.toObject(),
-        id: reservation._id,
-      });
-    }
-
-    await updateAndEmitPaymentMethodTotals(userId);
-
-    const userSockets = connectedUsers.filter((user) => user.user === userId);
-
-    userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("reservationCreated", [
-        ...createdReservations,
-      ]);
-    });
-
-    res.status(200).json({
-      message: "Reservations created successfully",
-      reservations: createdReservations,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-app.put("/update-reservation/:id", async (req, res) => {
-  try {
-    const reservationId = req.params.id;
-    const {
-      name,
-      email,
-      phone,
-      room,
-      start,
-      end,
-      isOverlapping,
-      price,
-      nights,
-      time,
-      userId,
-      comments,
-      precioTotal,
-      adelanto,
-      nombre_recepcionista,
-      montoPendiente,
-      dni,
-      paymentMethod,
-      numberOfGuests,
-      guestNames,
-      roomType,
-      isBooking,
-      surname,
-      billingStatus,
-      housekeepingStatus,
-    } = req.body;
-
-    const updateData = {
-      user: userId,
-      name,
-      email,
-      phone,
-      room,
-      start,
-      end,
-      time,
-      isOverlapping,
-      comments,
-      adelanto,
-      nombre_recepcionista,
-      montoPendiente,
-      dni,
-      paymentMethod,
-      numberOfGuests,
-      guestNames,
-      roomType,
-      isBooking,
-      surname,
-      billingStatus,
-      housekeepingStatus,
-    };
-
-    // Manejar campos numéricos
-    if (price !== undefined && !isNaN(parseFloat(price))) {
-      updateData.price = parseFloat(price);
-    }
-    if (nights !== undefined && !isNaN(parseInt(nights))) {
-      updateData.nights = parseInt(nights);
-    }
-    if (precioTotal !== undefined && !isNaN(parseFloat(precioTotal))) {
-      updateData.precioTotal = parseFloat(precioTotal);
-    }
-
-    const updatedReservation = await Reservation.findByIdAndUpdate(
-      reservationId,
-      updateData,
+        price: parseFloat(price),
+        nights: parseInt(nights),
+        precioTotal: parseFloat(precioTotal),
+      },
       { new: true }
     );
 
-    if (!updatedReservation) {
-      return res.status(404).json({ message: "Reservation not found" });
-    }
+    // Create new reservations for added rooms
+    const newReservations = await Promise.all(newRooms.map(async (room) => {
+      const newReservation = new Reservation({
+        ...updatedReservation.toObject(),
+        _id: undefined,
+        room: room,
+      });
+      return await newReservation.save();
+    }));
 
     await updateAndEmitPaymentMethodTotals(userId);
+
+    const allUpdatedReservations = [updatedReservation, ...newReservations];
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
     userSockets.forEach((userSocket) => {
-      io.to(userSocket.socketId).emit("updateReservation", {
-        ...updatedReservation.toObject(),
-        id: updatedReservation._id,
-      });
+      io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
     });
 
     res.status(200).json({
-      message: "Reservation updated successfully",
-      reservation: {
-        ...updatedReservation.toObject(),
-        id: updatedReservation._id,
-      },
+      message: "Reservations updated successfully",
+      reservations: allUpdatedReservations,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -314,12 +295,22 @@ app.put("/update-reservation/:id", async (req, res) => {
 app.delete("/delete-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
-    const { userId } = req.body;
+    const userId = req.query.userId;
 
-    const deletedReservation = await Reservation.findByIdAndDelete(
-      reservationId
-    );
+    // Check if the user is logged in
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para eliminar una reserva" });
+    }
+
+    // Verify that the userId matches the one in the session
+    if (userId !== req.session.userId.toString()) {
+      console.log('Session userId:', req.session.userId, 'Request userId:', userId);
+      return res.status(403).json({ message: "Usuario no autorizado" });
+    }
+
+    const deletedReservation = await Reservation.findByIdAndDelete(reservationId);
     await updateAndEmitPaymentMethodTotals(userId);
+    
     if (!deletedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
@@ -342,7 +333,13 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+app.get('/check-session', (req, res) => {
+  if (req.session && req.session.userId) {
+    res.json({ isLoggedIn: true, userId: req.session.userId });
+  } else {
+    res.json({ isLoggedIn: false });
+  }
+});
 app.get("/total-sales/:month", async (req, res) => {
   try {
     const { month } = req.params;
@@ -572,6 +569,21 @@ async function updateAndEmitPaymentMethodTotals(userId) {
     });
   });
 }
+
+// Add this route before your other route definitions
+app.get('/check-session', (req, res) => {
+  if (req.session && req.session.userId) {
+    res.json({ isLoggedIn: true, userId: req.session.userId });
+  } else {
+    res.json({ isLoggedIn: false });
+  }
+});
+
+// Make sure this is at the end of your route definitions
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
 server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
