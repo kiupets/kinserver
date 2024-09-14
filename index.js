@@ -1013,4 +1013,4 @@ server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
-module.exports = { app, io, connectedUsers };
+// module.exports = { app, io, connectedUsers };
