@@ -45,7 +45,7 @@ const io = new Server(server, {
 app.use(cors(corsOptions));
 app.use(express.static("build"));
 app.use(session({
-  // secret: "mysecret",
+  secret: process.env.SESSION_SECRET || "your-default-secret", // Add this line
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
