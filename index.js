@@ -109,9 +109,17 @@ const authenticateUser = (req, res, next) => {
     res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
   }
 };
+
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
-
+// Add this route before your other route definitions
+app.get('/check-session', (req, res) => {
+  if (req.session && req.session.userId) {
+    res.json({ isLoggedIn: true, userId: req.session.userId });
+  } else {
+    res.json({ isLoggedIn: false });
+  }
+});
 app.get("/all", async (req, res) => {
   console.log('Session:', req.session); 
   try {
@@ -337,13 +345,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-app.get('/check-session', (req, res) => {
-  if (req.session && req.session.userId) {
-    res.json({ isLoggedIn: true, userId: req.session.userId });
-  } else {
-    res.json({ isLoggedIn: false });
-  }
-});
+
 app.get("/total-sales/:month", async (req, res) => {
   try {
     const { month } = req.params;
@@ -574,14 +576,7 @@ async function updateAndEmitPaymentMethodTotals(userId) {
   });
 }
 
-// Add this route before your other route definitions
-app.get('/check-session', (req, res) => {
-  if (req.session && req.session.userId) {
-    res.json({ isLoggedIn: true, userId: req.session.userId });
-  } else {
-    res.json({ isLoggedIn: false });
-  }
-});
+
 
 // Make sure this is at the end of your route definitions
 app.get('*', (req, res) => {
