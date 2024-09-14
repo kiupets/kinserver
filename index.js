@@ -21,7 +21,9 @@ const xlsx = require("xlsx");
 const cors = require("cors");
 
 const corsOptions = {
-  origin: "http://localhost:3000", // Update this for production
+  origin: process.env.NODE_ENV === "production" 
+    ? "https://hotelexpress.onrender.com" // Production URL
+    : "http://localhost:3000", // Local development URL
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
@@ -36,7 +38,9 @@ store.on('error', function(error) {
 });
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // Update this for production
+    origin: process.env.NODE_ENV === "production" 
+      ? "https://hotelexpress.onrender.com" // Production URL
+      : "http://localhost:3000", // Local development URL
     credentials: true,
   },
 });
