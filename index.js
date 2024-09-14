@@ -60,6 +60,12 @@ app.use(session({
   store: store,
 }));
 
+app.use((req, res, next) => {
+  console.log('Session Middleware - Session:', req.session);
+  console.log('Session Middleware - SessionID:', req.sessionID);
+  next();
+});
+
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log("userId from connection: : ,  ",userId)
@@ -130,31 +136,40 @@ app.get('/check-session', (req, res) => {
   }
 });
 app.get("/all", async (req, res) => {
-  console.log('Session:', req.session); 
+  console.log('Session:', req.session);
+  console.log('Session ID:', req.sessionID);
+  console.log('Cookies:', req.cookies);
+  console.log('Signed Cookies:', req.signedCookies);
+  
   try {
     const userId = req.query.userId;
-    console.log("userId:",userId, "sessionId:",req.session.userId,"queryId:",req.query.userId)
+    console.log("userId:", userId, "sessionId:", req.sessionID, "queryId:", req.query.userId);
+    
     // Check if the user is logged in
     if (!req.session || !req.session.userId) {
+      console.log("No active session found");
       return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
     }
    
     // Verify that the userId matches the one in the session
     if (userId !== req.session.userId.toString()) {
-      
       console.log('Session userId:', req.session.userId, 'Request userId:', userId);
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
     const userReservations = await Reservation.find({ user: userId });
+    console.log("Reservations found:", userReservations.length);
+
     res.status(200).json({ userReservations });
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
+    console.log("Connected sockets for user:", userSockets.length);
 
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("allReservations", { userReservations });
     });
   } catch (error) {
+    console.error("Error in /all route:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -28,20 +28,27 @@ router.post("/register", async (req, res) => {
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log("Login attempt for username:", username);
 
     const user = await User.findOne({ username });
+    console.log("User found:", user ? "Yes" : "No");
 
     if (!user) {
+      console.log("Login failed: User not found");
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", isPasswordValid);
+
     if (!isPasswordValid) {
+      console.log("Login failed: Invalid password");
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
     req.session.userId = user._id.toString();
-    console.log('Session after login:', req.session);
+    console.log("Session after login:", req.session);
+    console.log("Session ID:", req.sessionID);
 
     res.status(200).json({ 
       success: true,
@@ -49,6 +56,7 @@ router.post("/login", async (req, res) => {
       userId: user._id
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({ error: error.message });
   }
 });
