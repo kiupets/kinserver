@@ -660,22 +660,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
+// const corsOptions = {
+//   origin: process.env.NODE_ENV === "production" 
+//     ? "https://hotelexpress.onrender.com" 
+//     : "http://localhost:3000",
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   credentials: true,
+// };
 const corsOptions = {
-  origin: process.env.NODE_ENV === "production" 
-    ? "https://hotelexpress.onrender.com" 
-    : "http://localhost:3000",
+  // origin: process.env.NODE_ENV === "production" 
+    // ? "https://hotelexpress.onrender.com" 
+    origin: "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
 app.use(cors(corsOptions));
 
 // Session middleware
+// app.use(session({
+//   secret: SESSION_SECRET,
+//   cookie: {
+//     maxAge: 1000 * 60 * 60 * 24, // 1 day
+//     secure: process.env.NODE_ENV === "production",
+//     sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+//   },
+//   store: store,
+//   resave: false,
+//   saveUninitialized: false,
+// }));
 app.use(session({
   secret: SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    secure: 'false',
+    sameSite: 'none',
   },
   store: store,
   resave: false,
