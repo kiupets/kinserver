@@ -51,7 +51,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "your-default-secret",
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    httpOnly: true,
+    // httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: 'lax',
   },
@@ -592,7 +592,3 @@ server.listen(PORT, () => {
   console.log("listening on *:8000");
 });
 module.exports.connectedUsers = connectedUsers;
-
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("SESSION_SECRET:", process.env.SESSION_SECRET);
-console.log("MONGODB_URI:", process.env.MONGODB_URI);
