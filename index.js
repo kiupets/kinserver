@@ -767,6 +767,7 @@ app.get("/check-session", (req, res) => {
 });
 
 app.get("/all", async (req, res) => {
+  console.log(req.session)
   try {
     const userId = req.query.userId;
     
