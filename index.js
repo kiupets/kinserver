@@ -776,7 +776,7 @@ const authenticateUser = (req, res, next) => {
   }
 };
 app.get("/all",authenticateUser, async (req, res) => {
-  console.log(req.session)
+  console.log("session from /all",req.session)
   try {
     const userId = req.query.userId;
     
