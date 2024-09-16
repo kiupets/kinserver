@@ -167,8 +167,8 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  console.log('Attempting to log in with:', { username, password });
-  console.log('Attempting to REQ RES:',req,res)
+  // console.log('Attempting to log in with:', { username, password });
+  // console.log('Attempting to REQ RES:',req,res)
   try {
     const { username, password } = req.body;
     console.log("Login attempt for username:", username);
