@@ -813,11 +813,11 @@ app.post("/create-reservation", async (req, res) => {
       return res.status(400).json({ message: "Reservation data is missing" });
     }
 
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
-    }
+    // if (!req.session || !req.session.userId) {
+    //   return res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
+    // }
 
-    if (userId !== req.session.userId.toString()) {
+    if (userId !== req.query.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
@@ -825,9 +825,9 @@ app.post("/create-reservation", async (req, res) => {
       ? reservationData.room.map(room => ({
           ...reservationData,
           room,
-          user: req.session.userId
+          user: req.query.userId
         }))
-      : [{ ...reservationData, user: req.session.userId }];
+      : [{ ...reservationData, user: req.query.userId }];
 
     const createdReservations = await Reservation.insertMany(reservations);
 
