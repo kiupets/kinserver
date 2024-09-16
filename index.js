@@ -680,6 +680,7 @@ app.use(cors(corsOptions));
 app.use(session({
   secret: "SESSION_SECRET",
   cookie: {
+    path:'/',
     httpOnly:true,
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     secure: true,
@@ -778,7 +779,7 @@ const authenticateUser = (req, res, next) => {
   }
 };
 app.get("/all", async (req, res) => {
-  console.log("session from /all",req.session)
+  console.log("session from /all",req.session, req.session.userId)
   try {
     const userId = req.query.userId;
     console.log("from /all what is req.session and req.session.userId",req.session, req.query.userId)
