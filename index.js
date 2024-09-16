@@ -786,7 +786,7 @@ app.get("/all", async (req, res) => {
     //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
     // }
    
-    if (userId !== req.session.userId.toString()) {
+    if (userId !== req.query.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
