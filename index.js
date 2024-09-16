@@ -769,13 +769,14 @@ app.get("/check-session", (req, res) => {
   }
 });
 const authenticateUser = (req, res, next) => {
+  console.log("authenticateUser:", req.session , req.session.userId)
   if (req.session && req.session.userId) {
     next();
   } else {
     res.status(401).json({ message: "Unauthorized" });
   }
 };
-app.get("/all",authenticateUser, async (req, res) => {
+app.get("/all", async (req, res) => {
   console.log("session from /all",req.session)
   try {
     const userId = req.query.userId;
