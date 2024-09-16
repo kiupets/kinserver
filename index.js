@@ -623,7 +623,7 @@ const path = require("path");
 const cors = require("cors");
 const jwt = require("jsonwebtoken") ;
 require("dotenv").config();
-
+require("./src/db");
 const authRoutes = require("./src/routes/auth");
 const reservationRoutes = require("./src/routes/reservations");
 const Reservation = require("./src/models/Reservation");
@@ -635,8 +635,8 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 8000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const SESSION_SECRET = process.env.SESSION_SECRET || "your_session_secret";
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const SESSION_SECRET = process.env.SESSION_SECRET 
+const JWT_SECRET = process.env.JWT_SECRET 
 
 // MongoDB connection
 mongoose.connect(MONGODB_URI, {
