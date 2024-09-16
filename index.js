@@ -669,7 +669,7 @@ app.use(express.urlencoded({ extended: true }));
 // };
 const corsOptions = {
   origin: process.env.NODE_ENV === "production" 
-    ? "https://hotelexpress.onrender.com" 
+    ? "/" 
     : "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
@@ -718,7 +718,7 @@ const verifyToken = (req, res, next) => {
 };
 
 // Apply verifyToken middleware to all routes
-app.use(verifyToken);
+// app.use(verifyToken);
 
 // Routes
 app.use("/auth", authRoutes);
@@ -792,7 +792,7 @@ app.get("/all", async (req, res) => {
     const userReservations = await Reservation.find({ user: userId });
 
     res.status(200).json({ userReservations });
-
+console.log("connectedUsers in /all:",connectedUsers)
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("allReservations", { userReservations });
