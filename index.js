@@ -678,11 +678,12 @@ app.use(cors(corsOptions));
 
 // Session middleware
 app.use(session({
-  secret: SESSION_SECRET,
+  secret: "SESSION_SECRET",
   cookie: {
+    httpOnly:true,
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    secure: true,
+    sameSite: 'none'
   },
   store: store,
   resave: false,
@@ -781,9 +782,9 @@ app.get("/all", async (req, res) => {
   try {
     const userId = req.session.userId;
     console.log("from /all what is req.session and req.session.userId",req.session, req.session.userId)
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
-    }
+    // if (!req.session || !req.session.userId) {
+    //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
+    // }
    
     if (userId !== req.session.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
