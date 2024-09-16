@@ -668,37 +668,37 @@ app.use(express.urlencoded({ extended: true }));
 //   credentials: true,
 // };
 const corsOptions = {
-  // origin: process.env.NODE_ENV === "production" 
-    // ? "https://hotelexpress.onrender.com" 
-    origin: "http://localhost:3000",
+  origin: process.env.NODE_ENV === "production" 
+    ? "https://hotelexpress.onrender.com" 
+    : "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
 app.use(cors(corsOptions));
 
 // Session middleware
-// app.use(session({
-//   secret: SESSION_SECRET,
-//   cookie: {
-//     maxAge: 1000 * 60 * 60 * 24, // 1 day
-//     secure: process.env.NODE_ENV === "production",
-//     sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-//   },
-//   store: store,
-//   resave: false,
-//   saveUninitialized: false,
-// }));
 app.use(session({
   secret: SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    secure: 'false',
-    sameSite: 'none',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   },
   store: store,
   resave: false,
   saveUninitialized: false,
 }));
+// app.use(session({
+//   secret: SESSION_SECRET,
+//   cookie: {
+//     maxAge: 1000 * 60 * 60 * 24, // 1 day
+//     secure: 'false',
+//     sameSite: 'none',
+//   },
+//   store: store,
+//   resave: false,
+//   saveUninitialized: false,
+// }));
 
 // JWT verification middleware
 const verifyToken = (req, res, next) => {
@@ -768,8 +768,14 @@ app.get("/check-session", (req, res) => {
     res.json({ isLoggedIn: false });
   }
 });
-
-app.get("/all", async (req, res) => {
+const authenticateUser = (req, res, next) => {
+  if (req.session && req.session.userId) {
+    next();
+  } else {
+    res.status(401).json({ message: "Unauthorized" });
+  }
+};
+app.get("/all",authenticateUser, async (req, res) => {
   console.log(req.session)
   try {
     const userId = req.query.userId;
