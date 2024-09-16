@@ -780,7 +780,7 @@ const authenticateUser = (req, res, next) => {
 app.get("/all", async (req, res) => {
   console.log("session from /all",req.session)
   try {
-    const userId = req.session.userId;
+    const userId = req.query.userId;
     console.log("from /all what is req.session and req.session.userId",req.session, req.session.userId)
     // if (!req.session || !req.session.userId) {
     //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
