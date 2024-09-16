@@ -758,6 +758,8 @@ io.on("connection", (socket) => {
 });
 
 // API routes
+
+
 app.get("/check-session", (req, res) => {
   console.log("ssssssssssseeeeeeeeessssssssssssssiiiiiiioooon:",req.session, req.session.userId)
   if (req.session && req.session.userId) {
