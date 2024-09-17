@@ -954,13 +954,13 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const reservationId = req.params.id;
     const userId = req.query.userId;
 
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({ message: "Debe iniciar sesión para eliminar una reserva" });
-    }
+    // if (!req.session || !req.session.userId) {
+    //   return res.status(401).json({ message: "Debe iniciar sesión para eliminar una reserva" });
+    // }
 
-    if (userId !== req.session.userId.toString()) {
-      return res.status(403).json({ message: "Usuario no autorizado" });
-    }
+    // if (userId !== req.session.userId.toString()) {
+    //   return res.status(403).json({ message: "Usuario no autorizado" });
+    // }
 
     const deletedReservation = await Reservation.findByIdAndDelete(reservationId);
     await updateAndEmitPaymentMethodTotals(userId);
