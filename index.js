@@ -876,13 +876,13 @@ app.put("/update-reservation/:id", async (req, res) => {
       nombre_recepcionista,
     } = req.body;
 
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({ message: "Debe iniciar sesión para actualizar una reserva" });
-    }
+    // if (!req.session || !req.session.userId) {
+    //   return res.status(401).json({ message: "Debe iniciar sesión para actualizar una reserva" });
+    // }
 
-    if (userId !== req.session.userId.toString()) {
-      return res.status(403).json({ message: "Usuario no autorizado" });
-    }
+    // if (userId !== req.session.userId.toString()) {
+    //   return res.status(403).json({ message: "Usuario no autorizado" });
+    // }
 
     const existingReservation = await Reservation.findById(reservationId);
     if (!existingReservation) {
