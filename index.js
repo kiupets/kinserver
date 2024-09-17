@@ -678,13 +678,13 @@ app.use(cors(corsOptions));
 
 // Session middleware
 app.use(session({
-  secret: "SESSION_SECRET",
+  secret: SESSION_SECRET,
   cookie: {
-    path:'/',
-    httpOnly:true,
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    secure: 'false',
-    sameSite: 'none'
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    path: '/'
   },
   store: store,
   resave: false,
