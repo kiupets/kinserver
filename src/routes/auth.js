@@ -26,7 +26,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  console.log("Session after login:", req.session.userId);
+ 
   try {
     const { username, password } = req.body;
     console.log("Login attempt for username:", username);
@@ -39,14 +39,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
-    // const isPasswordValid = await bcrypt.compare(password, user.password);
-    // console.log("Password valid:", isPasswordValid);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", isPasswordValid);
 
-    // if (!isPasswordValid) {
-    //   console.log("Login failed: Invalid password");
-    //   return res.status(401).json({ message: "Credenciales inválidas" });
-    // }
-
+    if (!isPasswordValid) {
+      console.log("Login failed: Invalid password");
+      return res.status(401).json({ message: "Credenciales inválidas" });
+    }
+    console.log("Session after login:", req.session.userId);
     req.session.userId = user._id.toString();
     console.log('Session after setting userId:', req.session);
     req.session.save((err) => {
