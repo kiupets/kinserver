@@ -26,6 +26,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+  console.log("Session after login:", req.session.userId);
   try {
     const { username, password } = req.body;
     console.log("Login attempt for username:", username);
