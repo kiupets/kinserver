@@ -14,6 +14,7 @@ const authRoutes = require("./src/routes/auth");
 const reservationRoutes = require("./src/routes/reservations");
 const Reservation = require("./src/models/Reservation");
 const User = require("./src/models/User");
+const bcrypt = require("bcrypt");
 
 const app = express();
 const server = http.createServer(app);
