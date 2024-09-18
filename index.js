@@ -60,46 +60,15 @@ app.use(session({
   secret: SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-    path: "https://hotelexpress.onrender.com"
+    // httpOnly: true,
+    // secure: process.env.NODE_ENV === "production",
+    // sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    // path: "https://hotelexpress.onrender.com"
   },
   store: store,
   resave: false,
   saveUninitialized: false,
 }));
-// app.use(session({
-//   secret: SESSION_SECRET,
-//   cookie: {
-//     maxAge: 1000 * 60 * 60 * 24, // 1 day
-//     secure: 'false',
-//     sameSite: 'none',
-//   },
-//   store: store,
-//   resave: false,
-//   saveUninitialized: false,
-// }));
-
-// JWT verification middleware
-// const verifyToken = (req, res, next) => {
-//   const token = req.header('Authorization')?.split(' ')[1];
-
-//   if (!token) {
-//     return next(); // Continue without token
-//   }
-
-//   try {
-//     const decoded = jwt.verify(token, JWT_SECRET);
-//     req.userId = decoded.userId;
-//     next();
-//   } catch (error) {
-//     return res.status(401).json({ message: "Invalid token" });
-//   }
-// };
-
-// Apply verifyToken middleware to all routes
-// app.use(verifyToken);
 
 // Routes
 app.use("/auth", authRoutes);
