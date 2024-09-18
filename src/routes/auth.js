@@ -26,7 +26,6 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
- 
   try {
     const { username, password } = req.body;
     console.log("Login attempt for username:", username);
@@ -46,24 +45,21 @@ router.post("/login", async (req, res) => {
       console.log("Login failed: Invalid password");
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
-    console.log("Session after login:", req.session.userId);
+
     req.session.userId = user._id.toString();
     console.log('Session after setting userId:', req.session);
+
     req.session.save((err) => {
       if (err) {
         console.error('Error saving session:', err);
-      } else {
-        console.log('Session saved successfully');
+        return res.status(500).json({ message: "Error saving session" });
       }
-      // Send response here, after session is saved
-      
       res.status(200).json({ 
         success: true,
         message: "Inicio de sesión exitoso", 
         userId: user._id
       });
     });
-  
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: error.message });
