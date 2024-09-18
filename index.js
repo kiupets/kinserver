@@ -149,14 +149,50 @@ app.get("/check-session", (req, res) => {
     res.json({ isLoggedIn: false });
   }
 });
-const authenticateUser = (req, res, next) => {
-  console.log("authenticateUser:", req.session , req.session.userId)
-  if (req.session && req.session.userId) {
-    next();
-  } else {
-    res.status(401).json({ message: "Unauthorized" });
+
+
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    console.log("Login attempt for username:", username);
+
+    const user = await User.findOne({ username });
+    console.log("User found:", user ? "Yes" : "No");
+
+    if (!user) {
+      console.log("Login failed: User not found");
+      return res.status(401).json({ message: "Credenciales inválidas" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", isPasswordValid);
+
+    if (!isPasswordValid) {
+      console.log("Login failed: Invalid password");
+      return res.status(401).json({ message: "Credenciales inválidas" });
+    }
+
+    req.session.userId = user._id.toString();
+    console.log('Session after setting userId:', req.session);
+
+    req.session.save((err) => {
+      if (err) {
+        console.error('Error saving session:', err);
+        return res.status(500).json({ message: "Error saving session" });
+      }
+      res.status(200).json({ 
+        success: true,
+        message: "Inicio de sesión exitoso", 
+        userId: user._id
+      });
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: error.message });
   }
-};
+});
+
+
 app.get("/all", async (req, res) => {
   console.log("session from /all",req.session, req.session.userId)
   try {
