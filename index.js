@@ -1,3 +1,4 @@
+require('dotenv').config(); // Load environment variables from .env file
 
 const express = require("express");
 const { Server } = require("socket.io");
@@ -8,22 +9,29 @@ const http = require("http");
 const path = require("path");
 const cors = require("cors");
 const jwt = require("jsonwebtoken") ;
-require("dotenv").config();
 require("./src/db");
 const authRoutes = require("./src/routes/auth");
 const reservationRoutes = require("./src/routes/reservations");
 const Reservation = require("./src/models/Reservation");
 const User = require("./src/models/User");
 const bcrypt = require("bcrypt");
-
+require('dotenv').config(); // Load environment variables from .env file
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    // origin: process.env.NODE_ENV === "production" 
+      // ? "https://hotelexpress.onrender.com" 
+      origin: "http://localhost:3000",
+    methods: ["GET", "POST","PUT","DELETE"],
+    credentials: true,
+  },
+});
 
 const PORT = process.env.PORT || 8000;
 const MONGODB_URI = process.env.MONGODB_URI;
-const SESSION_SECRET = process.env.SESSION_SECRET 
-const JWT_SECRET = process.env.JWT_SECRET 
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // MongoDB connection
 mongoose.connect(MONGODB_URI, {
@@ -61,10 +69,9 @@ app.use(session({
   secret: SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    // httpOnly: true,
-    // secure: process.env.NODE_ENV === "production",
-    // sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-    // path: "https://hotelexpress.onrender.com"
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   },
   store: store,
   resave: false,
@@ -75,7 +82,7 @@ app.use(session({
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
 
-// Socket.io setup
+// Socket.IO setup
 const connectedUsers = [];
 
 io.on("connection", (socket) => {
