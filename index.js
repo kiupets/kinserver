@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
 const http = require("http");
 const path = require("path");
 const cors = require("cors");
-const jwt = require("jsonwebtoken") ;
+const jwt = require("jsonwebtoken");
 require("./src/db");
 const authRoutes = require("./src/routes/auth");
 const reservationRoutes = require("./src/routes/reservations");
@@ -21,9 +21,9 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
-      // ? "https://hotelexpress.onrender.com" 
-      origin: "http://localhost:3000",
-    methods: ["GET", "POST","PUT","DELETE"],
+    // ? "https://hotelexpress.onrender.com" 
+    origin: "https://hotelexpress.onrender.com",
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
@@ -46,7 +46,7 @@ const store = new MongoDBStore({
   expires: 1000 * 60 * 60 * 24, // 1 day
 });
 
-store.on("error", function(error) {
+store.on("error", function (error) {
   console.log("Session store error:", error);
 });
 
@@ -56,8 +56,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.NODE_ENV === "production" 
-    ? "https://hotelexpress.onrender.com" 
+  origin: process.env.NODE_ENV === "production"
+    ? "https://hotelexpress.onrender.com"
     : "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
@@ -119,7 +119,7 @@ io.on("connection", (socket) => {
 
 
 app.get("/check-session", (req, res) => {
-  console.log("ssssssssssseeeeeeeeessssssssssssssiiiiiiioooon:",req.session, req.session.userId)
+  console.log("ssssssssssseeeeeeeeessssssssssssssiiiiiiioooon:", req.session, req.session.userId)
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
@@ -157,9 +157,9 @@ app.post("/login", async (req, res) => {
         console.error('Error saving session:', err);
         return res.status(500).json({ message: "Error saving session" });
       }
-      res.status(200).json({ 
+      res.status(200).json({
         success: true,
-        message: "Inicio de sesión exitoso", 
+        message: "Inicio de sesión exitoso",
         userId: user._id
       });
     });
@@ -171,14 +171,14 @@ app.post("/login", async (req, res) => {
 
 
 app.get("/all", async (req, res) => {
-  console.log("session from /all",req.session, req.session.userId)
+  console.log("session from /all", req.session, req.session.userId)
   try {
     const userId = req.query.userId;
-    console.log("from /all what is req.session and req.session.userId",req.session, req.query.userId)
+    console.log("from /all what is req.session and req.session.userId", req.session, req.query.userId)
     // if (!req.session || !req.session.userId) {
     //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
     // }
-   
+
     if (userId !== req.query.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
@@ -186,7 +186,7 @@ app.get("/all", async (req, res) => {
     const userReservations = await Reservation.find({ user: userId });
 
     res.status(200).json({ userReservations });
-console.log("connectedUsers in /all:",connectedUsers)
+    console.log("connectedUsers in /all:", connectedUsers)
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("allReservations", { userReservations });
@@ -214,12 +214,12 @@ app.post("/create-reservation", async (req, res) => {
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
-    const reservations = Array.isArray(reservationData.room) 
+    const reservations = Array.isArray(reservationData.room)
       ? reservationData.room.map(room => ({
-          ...reservationData,
-          room,
-          user: req.query.userId
-        }))
+        ...reservationData,
+        room,
+        user: req.query.userId
+      }))
       : [{ ...reservationData, user: req.query.userId }];
 
     const createdReservations = await Reservation.insertMany(reservations);
@@ -356,7 +356,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
 
     const deletedReservation = await Reservation.findByIdAndDelete(reservationId);
     await updateAndEmitPaymentMethodTotals(userId);
-    
+
     if (!deletedReservation) {
       return res.status(404).json({ message: "Reservation not found" });
     }
