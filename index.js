@@ -240,6 +240,7 @@ app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
     const {
+      // isDragging,
       name,
       email,
       phone,
@@ -284,6 +285,7 @@ app.put("/update-reservation/:id", async (req, res) => {
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
       {
+        // isDragging,
         user: userId,
         name,
         email,
@@ -313,7 +315,6 @@ app.put("/update-reservation/:id", async (req, res) => {
       { new: true }
     );
     let allUpdatedReservations = [updatedReservation];
-    console.log(allUpdatedReservations)
     if (Array.isArray(newRooms) && newRooms.length > 0) {
       const newReservations = await Promise.all(newRooms.map(async (room) => {
         const newReservation = new Reservation({
