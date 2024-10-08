@@ -22,7 +22,7 @@ const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
     // ? "https://hotelexpress.onrender.com" 
-    origin: "https://hotelexpress.onrender.com",
+    origin: process.env.REACT_APP_SOCKET_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
@@ -312,19 +312,21 @@ app.put("/update-reservation/:id", async (req, res) => {
       },
       { new: true }
     );
-
-    const newReservations = await Promise.all(newRooms.map(async (room) => {
-      const newReservation = new Reservation({
-        ...updatedReservation.toObject(),
-        _id: undefined,
-        room: room,
-      });
-      return await newReservation.save();
-    }));
+    let allUpdatedReservations = [updatedReservation];
+    console.log(allUpdatedReservations)
+    if (Array.isArray(newRooms) && newRooms.length > 0) {
+      const newReservations = await Promise.all(newRooms.map(async (room) => {
+        const newReservation = new Reservation({
+          ...updatedReservation.toObject(),
+          _id: undefined,
+          room: room,
+        });
+        return await newReservation.save();
+      }));
+      allUpdatedReservations = [...allUpdatedReservations, ...newReservations];
+    }
 
     await updateAndEmitPaymentMethodTotals(userId);
-
-    const allUpdatedReservations = [updatedReservation, ...newReservations];
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
 
@@ -340,6 +342,36 @@ app.put("/update-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+
+//     const newReservations = await Promise.all(newRooms.map(async (room) => {
+//       const newReservation = new Reservation({
+//         ...updatedReservation.toObject(),
+//         _id: undefined,
+//         room: room,
+//       });
+//       return await newReservation.save();
+//     }));
+
+//     await updateAndEmitPaymentMethodTotals(userId);
+
+//     const allUpdatedReservations = [updatedReservation, ...newReservations];
+
+//     const userSockets = connectedUsers.filter((user) => user.user === userId);
+
+//     userSockets.forEach((userSocket) => {
+//       io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
+//     });
+
+//     res.status(200).json({
+//       message: "Reservations updated successfully",
+//       reservations: allUpdatedReservations,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 
 app.delete("/delete-reservation/:id", async (req, res) => {
   try {
