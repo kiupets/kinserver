@@ -84,7 +84,7 @@ app.use("/reservations", reservationRoutes);
 
 // Socket.IO setup
 const connectedUsers = [];
-
+console.log(process.env.SESSION_SECRET)
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
@@ -120,7 +120,7 @@ io.on("connection", (socket) => {
 
 app.get("/check-session", (req, res) => {
   // Removed unnecessary session secret generation
-  console.log("REQ SESSION LOG: ", req.session)
+  console.log("REQ SESSION LOG: ", req.session, req.session.userId)
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
