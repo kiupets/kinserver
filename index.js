@@ -121,7 +121,8 @@ io.on("connection", (socket) => {
 
 
 app.get("/check-session", (req, res) => {
-  console.log("REQ SESSION LOG: ", req.session);
+  // Removed unnecessary session secret generation
+  console.log("REQ SESSION LOG: ", req.session, req.session.userId)
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
