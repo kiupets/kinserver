@@ -66,7 +66,7 @@ app.use(cors(corsOptions));
 
 // Session middleware
 app.use(session({
-  secret: SESSION_SECRET,
+  secret: process.env.SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
