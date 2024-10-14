@@ -154,22 +154,26 @@ app.post("/login", async (req, res) => {
 
 
 app.get("/all", async (req, res) => {
-  console.log("session from /all", req.session, req.session.userId)
+  console.log("session from /all", req.session);
+  console.log("User ID from session:", req.session.userId); // Log userId directly
+
   try {
     const userId = req.query.userId;
-    console.log("from /all what is req.session and req.session.userId", req.session, req.query.userId)
-    // if (!req.session || !req.session.userId) {
-    //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
-    // }
+    console.log("from /all what is req.session and req.session.userId", req.session, req.query.userId);
 
-    if (userId !== req.query.userId.toString()) {
+    // Uncomment the session check
+    if (!req.session || !req.session.userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
+    }
+
+    if (userId !== req.session.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
     }
 
     const userReservations = await Reservation.find({ user: userId });
 
     res.status(200).json({ userReservations });
-    console.log("connectedUsers in /all:", connectedUsers)
+    console.log("connectedUsers in /all:", connectedUsers);
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("allReservations", { userReservations });
