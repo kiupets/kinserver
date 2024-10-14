@@ -70,7 +70,7 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production", // true in production
     sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   },
   store: store,
@@ -132,21 +132,9 @@ app.get("/check-session", (req, res) => {
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("Login attempt for username:", username);
-
     const user = await User.findOne({ username });
-    console.log("User found:", user ? "Yes" : "No");
 
-    if (!user) {
-      console.log("Login failed: User not found");
-      return res.status(401).json({ message: "Credenciales inválidas" });
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    console.log("Password valid:", isPasswordValid);
-
-    if (!isPasswordValid) {
-      console.log("Login failed: Invalid password");
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
@@ -155,17 +143,11 @@ app.post("/login", async (req, res) => {
 
     req.session.save((err) => {
       if (err) {
-        console.error('Error saving session:', err);
         return res.status(500).json({ message: "Error saving session" });
       }
-      res.status(200).json({
-        success: true,
-        message: "Inicio de sesión exitoso",
-        userId: user._id
-      });
+      res.status(200).json({ success: true, message: "Inicio de sesión exitoso", userId: user._id });
     });
   } catch (error) {
-    console.error("Login error:", error);
     res.status(500).json({ error: error.message });
   }
 });
