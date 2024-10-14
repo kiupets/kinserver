@@ -69,9 +69,9 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    // httpOnly: true,
+    // secure: process.env.NODE_ENV === "production",
+    // sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   },
   store: store,
   resave: false,
@@ -84,7 +84,7 @@ app.use("/reservations", reservationRoutes);
 
 // Socket.IO setup
 const connectedUsers = [];
-console.log("f;alskdjf;adlskjf;adlskfjadkls;fjadls;kfjadkls;fjadkls;fjadls;kfjadls;kfjadkls;fjadls;kjfadkls;fjadkls;fadeklsw;adjkls;d", process.env.SESSION_SECRET)
+console.log("f;alskdjf;adlskjf;adlskfjadkls;fjadls;kadjkls;d", process.env.SESSION_SECRET)
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
