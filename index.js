@@ -71,8 +71,6 @@ app.use(session({
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    secure: false,
-
     sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   },
   store: store,
@@ -86,7 +84,7 @@ app.use("/reservations", reservationRoutes);
 
 // Socket.IO setup
 const connectedUsers = [];
-console.log("f;alskdjf;adlskjf;adlskfjadkls;fjadls;kadjkls;d", process.env.SESSION_SECRET)
+
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
@@ -121,8 +119,7 @@ io.on("connection", (socket) => {
 
 
 app.get("/check-session", (req, res) => {
-  // Removed unnecessary session secret generation
-  console.log("REQ SESSION LOG: ", req.session, req.session.userId)
+  console.log("ssssssssssseeeeeeeeessssssssssssssiiiiiiioooon:", req.session, req.session.userId)
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
