@@ -84,7 +84,7 @@ app.use("/reservations", reservationRoutes);
 
 // Socket.IO setup
 const connectedUsers = [];
-console.log(process.env.SESSION_SECRET)
+console.log("f;alskdjf;adlskjf;adlskfjadkls;fjadls;kfjadkls;fjadkls;fjadls;kfjadls;kfjadkls;fjadls;kjfadkls;fjadkls;fadeklsw;adjkls;d", process.env.SESSION_SECRET)
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
