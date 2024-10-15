@@ -22,7 +22,7 @@ const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
     // ? "https://hotelexpress.onrender.com" 
-    origin: "https://hotelexpress.onrender.com",
+    origin: process.env.REACT_APP_SOCKET_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
@@ -73,7 +73,7 @@ app.use(session({
   //   secure: process.env.NODE_ENV === "production",
   //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
   // },
-  secret: 'This is a secret',
+  secret: process.env.SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
   },
