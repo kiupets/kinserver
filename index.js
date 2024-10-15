@@ -75,7 +75,8 @@ app.use(session({
   // },
   secret: process.env.SESSION_SECRET,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    secure: process.env.NODE_ENV === "production",
   },
   store: store,
   resave: false,
@@ -92,6 +93,9 @@ const connectedUsers = [];
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
+
+  // Test event
+  socket.emit("testEvent", { message: "Socket is working!" });
 
   const existingUserIndex = connectedUsers.findIndex(
     (user) => user.user === userId
