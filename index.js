@@ -66,12 +66,16 @@ app.use(cors(corsOptions));
 
 // Session middleware
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  // secret: process.env.SESSION_SECRET,
+  // cookie: {
+  //   maxAge: 1000 * 60 * 60 * 24, // 1 day
+  //   httpOnly: true,
+  //   secure: process.env.NODE_ENV === "production",
+  //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+  // },
+  secret: 'This is a secret',
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
   },
   store: store,
   resave: false,
