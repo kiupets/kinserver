@@ -22,7 +22,7 @@ const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
     // ? "https://hotelexpress.onrender.com" 
-    origin: process.env.REACT_APP_SOCKET_URL,
+    origin: "https://hotelexpress.onrender.com",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
