@@ -409,7 +409,6 @@ app.delete("/delete-reservation/:id", async (req, res) => {
         id: reservationId,
       });
     });
-
     res.status(200).json({
       message: "Reservation deleted successfully",
       reservation: {
@@ -417,6 +416,78 @@ app.delete("/delete-reservation/:id", async (req, res) => {
       },
     });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+app.get("/reservations-by-date-range", async (req, res) => {
+  try {
+    const { startDate, endDate, userId } = req.query;
+
+    // Validate input
+    if (!startDate || !endDate || !userId) {
+      return res.status(400).json({ message: "Start date, end date, and userId are required" });
+    }
+
+    // Convert string dates to Date objects
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    // Validate date range
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      return res.status(400).json({ message: "Invalid date range" });
+    }
+
+    // Query the database for reservations within the date range
+    const reservations = await Reservation.find({
+      user: userId,
+      $or: [
+        { start: { $gte: start, $lte: end } },
+        { end: { $gte: start, $lte: end } },
+        { $and: [{ start: { $lte: start } }, { end: { $gte: end } }] }
+      ]
+    }).sort({ start: 1 });
+
+    res.status(200).json({
+      message: "Reservations retrieved successfully",
+      reservations: reservations
+    });
+
+  } catch (error) {
+    console.error("Error in /reservations-by-date-range route:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+app.put("/edit-reservation/:id", async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const userId = req.query.userId;
+    const updatedData = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
+
+    const updatedReservation = await Reservation.findOneAndUpdate(
+      { _id: reservationId, user: userId },
+      updatedData,
+      { new: true }
+    );
+
+    if (!updatedReservation) {
+      return res.status(404).json({ message: "Reservation not found or user not authorized" });
+    }
+
+    res.status(200).json({
+      message: "Reservation updated successfully",
+      reservation: updatedReservation
+    });
+
+  } catch (error) {
+    console.error("Error in /edit-reservation route:", error);
     res.status(500).json({ error: error.message });
   }
 });
