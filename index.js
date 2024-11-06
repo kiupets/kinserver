@@ -84,7 +84,12 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
 }));
-
+// Headers adicionales para asegurar el funcionamiento en móviles
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
 // Routes
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
