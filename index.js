@@ -18,6 +18,7 @@ const bcrypt = require("bcrypt");
 require('dotenv').config(); // Load environment variables from .env file
 const app = express();
 const server = http.createServer(app);
+const drinkRoutes = require('./src/routes/drinks');
 const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
@@ -142,7 +143,7 @@ app.get("/check-session", (req, res) => {
   }
 });
 
-
+app.use('/drinks', drinkRoutes);
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -275,6 +276,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       paymentMethod,
       numberOfGuests,
       guestNames,
+      guestDNIs,
       roomType,
       isBooking,
       surname,
@@ -318,6 +320,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         paymentMethod,
         numberOfGuests,
         guestNames,
+        guestDNIs,
         roomType,
         isBooking,
         surname,

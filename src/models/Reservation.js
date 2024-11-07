@@ -111,6 +111,20 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     // required: true,
   },
+  numberOfGuests: {
+    type: Number,
+    // required: true,
+  },
+  guestNames: {
+    type: [String],
+    // required: true,
+  },
+  guestDNIs: {
+    type: [String],
+    // required: true,
+  },
+
+
 });
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
