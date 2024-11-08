@@ -19,6 +19,11 @@ require('dotenv').config(); // Load environment variables from .env file
 const app = express();
 const server = http.createServer(app);
 const drinkRoutes = require('./src/routes/drinks');
+// In index.js
+const guestRoutes = require('./src/routes/guest');
+
+// Other middleware and configurations...
+
 const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
@@ -144,6 +149,8 @@ app.get("/check-session", (req, res) => {
 });
 
 app.use('/drinks', drinkRoutes);
+app.use('/guests', guestRoutes); // This sets the base route for guests
+
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
