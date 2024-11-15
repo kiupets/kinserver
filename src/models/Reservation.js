@@ -83,7 +83,7 @@ const reservationSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ["efectivo", "tarjeta", "deposito"],
+    enum: ["efectivo", "tarjeta", "transferencia"],
     // required: true,
   },
   roomType: {

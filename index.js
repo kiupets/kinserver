@@ -19,9 +19,11 @@ require('dotenv').config(); // Load environment variables from .env file
 const app = express();
 const server = http.createServer(app);
 const drinkRoutes = require('./src/routes/drinks');
+const financialRoutes = require('./src/routes/excelExport')
 // In index.js
+const paymentTotalsRoutes = require('./src/routes/paymentTotals');
 const guestRoutes = require('./src/routes/guest');
-
+const excelExportRoutes = require('./src/routes/excelExport');
 // Other middleware and configurations...
 
 const io = new Server(server, {
@@ -99,6 +101,7 @@ app.use((req, res, next) => {
 // Routes
 app.use("/auth", authRoutes);
 app.use("/reservations", reservationRoutes);
+app.use('/excel', excelExportRoutes);
 
 // Socket.IO setup
 const connectedUsers = [];
@@ -140,14 +143,15 @@ io.on("connection", (socket) => {
 
 
 app.get("/check-session", (req, res) => {
-  console.log("ssssssssssseeeeeeeeessssssssssssssiiiiiiioooon:", req.session, req.session.userId)
+
   if (req.session && req.session.userId) {
     res.json({ isLoggedIn: true, userId: req.session.userId });
   } else {
     res.json({ isLoggedIn: false });
   }
 });
-
+app.use('/api/financial', financialRoutes);
+app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes); // This sets the base route for guests
 
@@ -194,13 +198,11 @@ app.post("/login", async (req, res) => {
 
 
 app.get("/all", async (req, res) => {
-  console.log("session from /all", req.session, req.session.userId)
+
   try {
     const userId = req.query.userId;
-    console.log("from /all what is req.session and req.session.userId", req.session, req.query.userId)
-    // if (!req.session || !req.session.userId) {
-    //   return res.status(401).json({ message: "Debe iniciar sesión para ver las reservas" });
-    // }
+
+
 
     if (userId !== req.query.userId.toString()) {
       return res.status(403).json({ message: "Usuario no autorizado" });
@@ -209,7 +211,7 @@ app.get("/all", async (req, res) => {
     const userReservations = await Reservation.find({ user: userId });
 
     res.status(200).json({ userReservations });
-    console.log("connectedUsers in /all:", connectedUsers)
+
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("allReservations", { userReservations });
@@ -293,13 +295,6 @@ app.put("/update-reservation/:id", async (req, res) => {
       nombre_recepcionista,
     } = req.body;
 
-    // if (!req.session || !req.session.userId) {
-    //   return res.status(401).json({ message: "Debe iniciar sesión para actualizar una reserva" });
-    // }
-
-    // if (userId !== req.session.userId.toString()) {
-    //   return res.status(403).json({ message: "Usuario no autorizado" });
-    // }
 
     const existingReservation = await Reservation.findById(reservationId);
     if (!existingReservation) {
@@ -309,7 +304,7 @@ app.put("/update-reservation/:id", async (req, res) => {
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
       {
-        // isDragging,
+
         user: userId,
         name,
         email,
@@ -371,46 +366,12 @@ app.put("/update-reservation/:id", async (req, res) => {
 
 
 
-//     const newReservations = await Promise.all(newRooms.map(async (room) => {
-//       const newReservation = new Reservation({
-//         ...updatedReservation.toObject(),
-//         _id: undefined,
-//         room: room,
-//       });
-//       return await newReservation.save();
-//     }));
-
-//     await updateAndEmitPaymentMethodTotals(userId);
-
-//     const allUpdatedReservations = [updatedReservation, ...newReservations];
-
-//     const userSockets = connectedUsers.filter((user) => user.user === userId);
-
-//     userSockets.forEach((userSocket) => {
-//       io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
-//     });
-
-//     res.status(200).json({
-//       message: "Reservations updated successfully",
-//       reservations: allUpdatedReservations,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
 
 app.delete("/delete-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
     const userId = req.query.userId;
 
-    // if (!req.session || !req.session.userId) {
-    //   return res.status(401).json({ message: "Debe iniciar sesión para eliminar una reserva" });
-    // }
-
-    // if (userId !== req.session.userId.toString()) {
-    //   return res.status(403).json({ message: "Usuario no autorizado" });
-    // }
 
     const deletedReservation = await Reservation.findByIdAndDelete(reservationId);
     await updateAndEmitPaymentMethodTotals(userId);
