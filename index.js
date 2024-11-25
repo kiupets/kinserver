@@ -153,9 +153,9 @@ const sessionConfig = {
   secret: SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 día
-    httpOnly: true,
-    secure: true, // Ensure this is set to true in production
-    sameSite: 'lax' // or 'strict' depending on your use case
+    // httpOnly: true,
+    // secure: true, // Ensure this is set to true in production
+    // sameSite: 'lax' // or 'strict' depending on your use case
   },
   name: 'sessionId',
   store: store,
