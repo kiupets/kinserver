@@ -29,6 +29,18 @@ const excelExportRoutes = require('./src/routes/excelExport2');
 
 // Other middleware and configurations...
 
+// const io = new Server(server, {
+//   cors: {
+//     // origin: process.env.NODE_ENV === "production" 
+//     // ? "https://hotelexpress.onrender.com" 
+//     origin: process.env.REACT_APP_SOCKET_URL,
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+//     exposedHeaders: ['Content-Disposition']
+//   },
+// });
+
+
 const io = new Server(server, {
   cors: {
     // origin: process.env.NODE_ENV === "production" 
@@ -36,9 +48,11 @@ const io = new Server(server, {
     origin: process.env.REACT_APP_SOCKET_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-    exposedHeaders: ['Content-Disposition']
   },
 });
+
+
+
 // app.use('/excel', require('./routes/excelExport'));
 const PORT = process.env.PORT || 8000;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -64,6 +78,17 @@ app.use(express.urlencoded({ extended: true }));
 
 
 
+// const corsOptions = {
+//   origin: process.env.NODE_ENV === "production"
+//     ? "https://hotelexpress.onrender.com"
+//     : "http://localhost:3000",
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   credentials: true,
+// };
+// app.use(cors(corsOptions));
+// Store configuration
+
+// CORS configuration
 const corsOptions = {
   origin: process.env.NODE_ENV === "production"
     ? "https://hotelexpress.onrender.com"
@@ -72,12 +97,36 @@ const corsOptions = {
   credentials: true,
 };
 app.use(cors(corsOptions));
-// Store configuration
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'sessions',
   expires: 1000 * 60 * 60 * 24, // 1 día
   autoRemove: 'native'
+});
+app.use(session({
+  // secret: process.env.SESSION_SECRET,
+  // cookie: {
+  //   maxAge: 1000 * 60 * 60 * 24, // 1 day
+  //   httpOnly: true,
+  //   secure: process.env.NODE_ENV === "production",
+  //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+  // },
+  secret: process.env.SESSION_SECRET,
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    secure: true,
+    sameSite: 'none',
+    httpOnly: true
+  },
+  store: store,
+  resave: false,
+  saveUninitialized: false,
+}));
+// Headers adicionales para asegurar el funcionamiento en móviles
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
 });
 store.on("error", function (error) {
   console.log("Session store error:", error);
