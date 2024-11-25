@@ -19,11 +19,14 @@ require('dotenv').config(); // Load environment variables from .env file
 const app = express();
 const server = http.createServer(app);
 const drinkRoutes = require('./src/routes/drinks');
-const financialRoutes = require('./src/routes/excelExport')
-// In index.js
+// const authRoutes = require('./routes/auth');
 const paymentTotalsRoutes = require('./src/routes/paymentTotals');
 const guestRoutes = require('./src/routes/guest');
-const excelExportRoutes = require('./src/routes/excelExport');
+const excelExportRoutes = require('./src/routes/excelExport2');
+
+
+
+
 // Other middleware and configurations...
 
 const io = new Server(server, {
@@ -33,9 +36,10 @@ const io = new Server(server, {
     origin: process.env.REACT_APP_SOCKET_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
+    exposedHeaders: ['Content-Disposition']
   },
 });
-
+// app.use('/excel', require('./routes/excelExport'));
 const PORT = process.env.PORT || 8000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -48,21 +52,18 @@ mongoose.connect(MONGODB_URI, {
 });
 
 // Session store configuration
-const store = new MongoDBStore({
-  uri: MONGODB_URI,
-  collection: "sessions",
-  expires: 1000 * 60 * 60 * 24, // 1 day
-});
 
-store.on("error", function (error) {
-  console.log("Session store error:", error);
-});
+
+
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration
+
+
+
+
 const corsOptions = {
   origin: process.env.NODE_ENV === "production"
     ? "https://hotelexpress.onrender.com"
@@ -71,37 +72,98 @@ const corsOptions = {
   credentials: true,
 };
 app.use(cors(corsOptions));
-
+// Store configuration
+const store = new MongoDBStore({
+  uri: MONGODB_URI,
+  collection: 'sessions',
+  expires: 1000 * 60 * 60 * 24, // 1 día
+  autoRemove: 'native'
+});
+store.on("error", function (error) {
+  console.log("Session store error:", error);
+});
 // Session middleware
-app.use(session({
-  // secret: process.env.SESSION_SECRET,
-  // cookie: {
-  //   maxAge: 1000 * 60 * 60 * 24, // 1 day
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-  // },
-  secret: process.env.SESSION_SECRET,
+// En index.js, modifica la configuración de la sesión:
+// Configuración de sesión
+// const sessionConfig = {
+//   secret: SESSION_SECRET,
+//   cookie: {
+//     maxAge: 1000 * 60 * 60 * 24, // 1 día
+//     httpOnly: true,
+//     secure: false, // Cambiar a true si usas HTTPS
+//     sameSite: 'lax'
+//   },
+//   name: 'sessionId', // Nombre personalizado para la cookie
+//   store: store,
+//   resave: true,     // Cambiado a true para asegurar que la sesión se guarde
+//   saveUninitialized: false,
+//   rolling: true     // Renueva el tiempo de expiración en cada request
+// };
+
+const sessionConfig = {
+  secret: SESSION_SECRET,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-    secure: true,
-    sameSite: 'none',
-    httpOnly: true
+    maxAge: 1000 * 60 * 60 * 24, // 1 día
+    httpOnly: true,
+    secure: true, // Ensure this is set to true in production
+    sameSite: 'lax' // or 'strict' depending on your use case
   },
+  name: 'sessionId',
   store: store,
   resave: false,
   saveUninitialized: false,
-}));
+  rolling: true
+};
+
+store.on('error', (error) => {
+  console.error('Session store error:', error);
+});
+
+app.use(session(sessionConfig));
+// Middleware para debug
+app.use((req, res, next) => {
+  console.log('Session debug:', {
+    sessionID: req.sessionID,
+    userId: req.session?.userId,
+    cookie: req.session?.cookie
+  });
+  next();
+});
 // Headers adicionales para asegurar el funcionamiento en móviles
+// app.use((req, res, next) => {
+//   res.header('Access-Control-Allow-Credentials', 'true');
+//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+//   next();
+// });
+// app.use((req, res, next) => {
+//   console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
+//   next();
+// });
+
+// Rutas
+// app.use('/excel', require('./src/routes/excelExport'));
+
+// Manejo de errores
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message });
+});
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 // Routes
-app.use("/auth", authRoutes);
-app.use("/reservations", reservationRoutes);
-app.use('/excel', excelExportRoutes);
+app.use('/auth', authRoutes);
+// app.use("/reservations", reservationRoutes);
+app.use("/excel", excelExportRoutes); // Una sola ruta para excel
+app.use('/payment-totals', paymentTotalsRoutes);
+app.use('/drinks', drinkRoutes);
+app.use('/guests', guestRoutes);
+
 
 // Socket.IO setup
 const connectedUsers = [];
@@ -142,18 +204,26 @@ io.on("connection", (socket) => {
 // API routes
 
 
+// Modifica el endpoint check-session:
 app.get("/check-session", (req, res) => {
+  console.log('Check session:', {
+    sessionId: req.sessionID,
+    session: req.session,
+    userId: req.session?.userId
+  });
 
+  // Cambiamos la verificación para solo revisar el userId
   if (req.session && req.session.userId) {
-    res.json({ isLoggedIn: true, userId: req.session.userId });
+    res.json({
+      isLoggedIn: true,
+      userId: req.session.userId
+    });
   } else {
+    console.log('No valid session found');
     res.json({ isLoggedIn: false });
   }
 });
-app.use('/api/financial', financialRoutes);
-app.use('/payment-totals', paymentTotalsRoutes);
-app.use('/drinks', drinkRoutes);
-app.use('/guests', guestRoutes); // This sets the base route for guests
+// app.use('/api/financial', financialRoutes);
 
 app.post("/login", async (req, res) => {
   try {
@@ -196,6 +266,9 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.use('/payment-totals', paymentTotalsRoutes);
+app.use('/drinks', drinkRoutes);
+app.use('/guests', guestRoutes); // This sets the base route for guests
 
 app.get("/all", async (req, res) => {
 
@@ -231,30 +304,41 @@ app.post("/create-reservation", async (req, res) => {
       return res.status(400).json({ message: "Reservation data is missing" });
     }
 
-    // if (!req.session || !req.session.userId) {
-    //   return res.status(401).json({ message: "Debe iniciar sesión para hacer una reserva" });
-    // }
+    // Procesar pagos y calcular totales
+    const payments = reservationData.payments || [];
+    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const montoPendiente = reservationData.precioTotal - totalPaid;
 
-    if (userId !== req.query.userId.toString()) {
-      return res.status(403).json({ message: "Usuario no autorizado" });
-    }
-
+    // Crear las reservas para cada habitación seleccionada
     const reservations = Array.isArray(reservationData.room)
       ? reservationData.room.map(room => ({
         ...reservationData,
         room,
-        user: req.query.userId
+        user: userId,
+        payments: payments,        // Agregar los pagos
+        totalPaid: totalPaid,     // Agregar el total pagado
+        montoPendiente: montoPendiente // Actualizar monto pendiente
       }))
-      : [{ ...reservationData, user: req.query.userId }];
+      : [{
+        ...reservationData,
+        user: userId,
+        payments: payments,
+        totalPaid: totalPaid,
+        montoPendiente: montoPendiente
+      }];
 
     const createdReservations = await Reservation.insertMany(reservations);
 
+    // Emitir eventos y responder
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("reservationCreated", createdReservations);
     });
 
-    res.status(200).json({ message: "Reservations created successfully", reservations: createdReservations });
+    res.status(200).json({
+      message: "Reservations created successfully",
+      reservations: createdReservations
+    });
   } catch (error) {
     console.error('Error creating reservation:', error);
     res.status(500).json({ error: error.message });
@@ -280,7 +364,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       precioTotal,
       adelanto,
       time,
-      montoPendiente,
+      // montoPendiente,
       dni,
       paymentMethod,
       numberOfGuests,
@@ -293,9 +377,15 @@ app.put("/update-reservation/:id", async (req, res) => {
       housekeepingStatus,
       userId,
       nombre_recepcionista,
+      payments,
     } = req.body;
-
-
+    const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
+    if (totalPaid > precioTotal) {
+      return res.status(400).json({
+        error: "El total de pagos no puede exceder el precio total"
+      });
+    }
+    const montoPendiente = Math.max(0, precioTotal - totalPaid);
     const existingReservation = await Reservation.findById(reservationId);
     if (!existingReservation) {
       return res.status(404).json({ message: "Reservation not found" });
@@ -331,6 +421,9 @@ app.put("/update-reservation/:id", async (req, res) => {
         price: parseFloat(price),
         nights: parseInt(nights),
         precioTotal: parseFloat(precioTotal),
+        payments,
+        totalPaid,
+        montoPendiente,
       },
       { new: true }
     );
@@ -512,6 +605,35 @@ async function updateAndEmitPaymentMethodTotals(userId) {
     });
   });
 }
+app.get("/search-reservations", async (req, res) => {
+  try {
+    const { userId, searchTerm } = req.query;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para buscar reservas" });
+    }
+
+    const query = {
+      user: userId,
+      $or: [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+        { dni: { $regex: searchTerm, $options: 'i' } },
+        { phone: { $regex: searchTerm, $options: 'i' } }
+      ]
+    };
+
+    const reservations = await Reservation.find(query)
+      .sort({ start: -1 })
+      .limit(10)
+      .select('name surname dni room start end price roomType billingStatus');
+
+    res.status(200).json({ reservations });
+  } catch (error) {
+    console.error('Error en búsqueda de reservaciones:', error);
+    res.status(500).json({ message: 'Error al buscar reservaciones' });
+  }
+});
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
@@ -527,3 +649,8 @@ server.listen(PORT, () => {
 });
 
 // module.exports = { app, io, connectedUsers };
+app._router.stack.forEach(function (r) {
+  if (r.route && r.route.path) {
+    console.log(r.route.path)
+  }
+});

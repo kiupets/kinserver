@@ -1,130 +1,3 @@
-
-// const express = require('express');
-// const router = express.Router();
-// const ExcelJS = require('exceljs');
-// const XLSX = require('xlsx');
-// const Reservation = require('../models/Reservation');
-
-// // Version 1: Using ExcelJS
-// router.get('/export-exceljs', async (req, res) => {
-//     try {
-//         const userId = req.query.userId;
-//         if (!userId) {
-//             return res.status(400).json({ message: "User ID is required" });
-//         }
-
-//         // Fetch reservations from database
-//         const reservations = await Reservation.find({ user: userId });
-
-//         // Create a new workbook and worksheet   
-//         const workbook = new ExcelJS.Workbook();
-//         const worksheet = workbook.addWorksheet('Reservaciones');
-
-//         // Define columns
-//         worksheet.columns = [
-//             { header: 'Nombre', key: 'name', width: 20 },
-//             { header: 'Apellido', key: 'surname', width: 20 },
-//             { header: 'Noches', key: 'nights', width: 10 },
-//             { header: 'Habitación', key: 'room', width: 15 },
-//             { header: 'Efectivo', key: 'efectivo', width: 15 },
-//             { header: 'Tarjeta', key: 'tarjeta', width: 15 },
-//             { header: 'Transferencia', key: 'transferencia', width: 15 }
-//         ];
-
-//         // Add rows
-//         reservations.forEach(reservation => {
-//             worksheet.addRow({
-//                 name: reservation.name,
-//                 surname: reservation.surname,
-//                 nights: reservation.nights,
-//                 room: reservation.room,
-//                 efectivo: reservation.paymentMethod === 'efectivo' ? reservation.precioTotal : 0,
-//                 tarjeta: reservation.paymentMethod === 'tarjeta' ? reservation.precioTotal : 0,
-//                 transferencia: reservation.paymentMethod === 'deposito' ? reservation.precioTotal : 0
-//             });
-//         });
-
-//         // Style the header row
-//         worksheet.getRow(1).font = { bold: true };
-//         worksheet.getRow(1).fill = {
-//             type: 'pattern',
-//             pattern: 'solid',
-//             fgColor: { argb: 'FFE0E0E0' }
-//         };
-
-//         // Set response headers
-//         res.setHeader(
-//             'Content-Type',
-//             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//         );
-//         res.setHeader(
-//             'Content-Disposition',
-//             'attachment; filename=reservaciones.xlsx'
-//         );
-
-//         // Write to response
-//         await workbook.xlsx.write(res);
-//         res.end();
-
-//     } catch (error) {
-//         console.error('Error exporting Excel:', error);
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// // Version 2: Using XLSX
-// router.get('/export-xlsx', async (req, res) => {
-//     try {
-//         const userId = req.query.userId;
-//         if (!userId) {
-//             return res.status(400).json({ message: "User ID is required" });
-//         }
-
-//         // Fetch reservations from database
-//         const reservations = await Reservation.find({ user: userId });
-
-//         // Transform data for Excel
-//         const excelData = reservations.map(reservation => ({
-//             'Nombre': reservation.name,
-//             'Apellido': reservation.surname,
-//             'Noches': reservation.nights,
-//             'Habitación': reservation.room,
-//             'Efectivo': reservation.paymentMethod === 'efectivo' ? reservation.precioTotal : 0,
-//             'Tarjeta': reservation.paymentMethod === 'tarjeta' ? reservation.precioTotal : 0,
-//             'Transferencia': reservation.paymentMethod === 'deposito' ? reservation.precioTotal : 0
-//         }));
-
-//         // Create workbook and worksheet
-//         const workbook = XLSX.utils.book_new();
-//         const worksheet = XLSX.utils.json_to_sheet(excelData);
-
-//         // Add worksheet to workbook
-//         XLSX.utils.book_append_sheet(workbook, worksheet, 'Reservaciones');
-
-//         // Generate Excel file buffer
-//         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-
-//         // Set response headers
-//         res.setHeader(
-//             'Content-Type',
-//             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//         );
-//         res.setHeader(
-//             'Content-Disposition',
-//             'attachment; filename=reservaciones.xlsx'
-//         );
-
-//         // Send response
-//         res.send(excelBuffer);
-
-//     } catch (error) {
-//         console.error('Error exporting Excel:', error);
-//         res.status(500).json({ error: error.message });
-//     }
-// });
-
-// module.exports = router;
-
 const express = require('express');
 const router = express.Router();
 const ExcelJS = require('exceljs');
@@ -133,134 +6,168 @@ const Reservation = require('../models/Reservation');
 
 router.get('/export-detailed', async (req, res) => {
     try {
-        const { userId, reportType, startDate, endDate } = req.query;
+        const { userId, startDate, endDate } = req.query;
+        console.log('Generating report for dates:', { startDate, endDate });
 
-        if (!userId) {
-            return res.status(400).json({ message: "User ID is required" });
-        }
-
-        // Log the query parameters
-        console.log('Query parameters:', { userId, startDate, endDate, reportType });
-
-        // Build date range query based on reportType
-        const dateQuery = {};
-        if (startDate && endDate) {
-            dateQuery.start = {
-                $gte: moment(startDate).startOf('day').toDate(),
-                $lte: moment(endDate).endOf('day').toDate()
-            };
-        }
-
-        // Log the date query
-        console.log('Date query:', dateQuery);
-
-        // Fetch reservations
-        const reservations = await Reservation.find({
+        // Query alineada con Billing
+        const dateQuery = {
             user: userId,
-            ...dateQuery
-        }).sort({ start: 1 });
+            $expr: {
+                $and: [
+                    // Mes de la fecha de inicio de la reserva debe estar en el rango seleccionado
+                    {
+                        $gte: [
+                            { $month: "$start" },
+                            parseInt(moment(startDate).format('M'))
+                        ]
+                    },
+                    {
+                        $lte: [
+                            { $month: "$start" },
+                            parseInt(moment(endDate).format('M'))
+                        ]
+                    },
+                    // Año de la fecha de inicio debe coincidir
+                    {
+                        $eq: [
+                            { $year: "$start" },
+                            parseInt(moment(startDate).format('YYYY'))
+                        ]
+                    }
+                ]
+            }
+        };
 
-        // Log the fetched reservations
-        console.log('Fetched reservations:', reservations);
+        console.log('Query:', JSON.stringify(dateQuery, null, 2));
 
-        if (reservations.length === 0) {
-            return res.status(404).json({ message: "No reservations found for the specified user and date range" });
-        }
+        const reservations = await Reservation.find(dateQuery)
+            .sort({ start: 1 })
+            .lean();
 
-        // Create workbook and worksheet
+        console.log(`Found ${reservations.length} reservations`);
+
         const workbook = new ExcelJS.Workbook();
-        workbook.creator = 'Hotel Management System';
-        workbook.created = new Date();
+        const worksheet = workbook.addWorksheet('Reservaciones');
 
-        const worksheet = workbook.addWorksheet('Reservaciones', {
-            properties: { tabColor: { argb: '4167B1' } }
-        });
-
-        // Define columns
         worksheet.columns = [
-            { header: 'Fecha', key: 'date', width: 15 },
+            { header: 'Fecha Reserva', key: 'fechaReserva', width: 20 },
             { header: 'Nombre', key: 'name', width: 20 },
             { header: 'Apellido', key: 'surname', width: 20 },
             { header: 'Habitación', key: 'room', width: 12 },
+            { header: 'Tipo', key: 'roomType', width: 15 },
+            { header: 'Check-in', key: 'checkIn', width: 12 },
+            { header: 'Check-out', key: 'checkOut', width: 12 },
             { header: 'Noches', key: 'nights', width: 10 },
-            { header: 'Check-in', key: 'checkIn', width: 15 },
-            { header: 'Check-out', key: 'checkOut', width: 15 },
-            { header: 'Efectivo', key: 'cash', width: 15 },
-            { header: 'Tarjeta', key: 'card', width: 15 },
-            { header: 'Transferencia', key: 'transfer', width: 15 },
+            { header: 'Huéspedes', key: 'guests', width: 12 },
             { header: 'Total', key: 'total', width: 15 },
-            { header: 'Estado', key: 'status', width: 15 }
+            { header: 'Efectivo', key: 'efectivo', width: 15 },
+            { header: 'Tarjeta', key: 'tarjeta', width: 15 },
+            { header: 'Transferencia', key: 'transferencia', width: 15 },
+            { header: 'Pendiente', key: 'pending', width: 15 },
+            { header: 'Estado Pago', key: 'paymentStatus', width: 20 },
+            { header: 'Estado Hab.', key: 'roomStatus', width: 15 },
+            { header: 'Recepcionista', key: 'receptionist', width: 20 },
+            { header: 'Comentarios', key: 'comments', width: 30 }
         ];
 
-        // Style header row
-        worksheet.getRow(1).font = { bold: true, size: 12, color: { argb: 'FFFFFF' } };
+        worksheet.getRow(1).font = { bold: true };
         worksheet.getRow(1).fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: '4167B1' }
+            fgColor: { argb: 'FF4167B1' }
         };
-        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-        // Add data rows
-        let totalCash = 0;
-        let totalCard = 0;
-        let totalTransfer = 0;
+        ['total', 'efectivo', 'tarjeta', 'transferencia', 'pending'].forEach(col => {
+            worksheet.getColumn(col).numFmt = '"$"#,##0.00';
+        });
 
+        let totales = {
+            noches: 0,
+            huespedes: 0,
+            total: 0,
+            efectivo: 0,
+            tarjeta: 0,
+            transferencia: 0,
+            pendiente: 0
+        };
+
+        // Procesar reservaciones
         reservations.forEach(reservation => {
-            const row = worksheet.addRow({
-                date: moment(reservation.createdAt).format('YYYY-MM-DD'),
-                name: reservation.name || '',
-                surname: reservation.surname || '',
-                room: reservation.room.join(', ') || '',
-                nights: reservation.nights || 0,
-                checkIn: moment(reservation.start).format('YYYY-MM-DD'),
-                checkOut: moment(reservation.end).format('YYYY-MM-DD'),
-                cash: reservation.paymentMethod === 'efectivo' ? reservation.precioTotal : 0,
-                card: reservation.paymentMethod === 'tarjeta' ? reservation.precioTotal : 0,
-                transfer: reservation.paymentMethod === 'transferencia' ? reservation.precioTotal : 0,
-                total: reservation.precioTotal,
-                status: reservation.billingStatus || ''
-            });
-
-            // Alternate row colors
-            row.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: row.number % 2 ? 'F5F5F5' : 'FFFFFF' }
+            const precioTotal = reservation.precioTotal || 0;
+            let montos = {
+                efectivo: 0,
+                tarjeta: 0,
+                transferencia: 0
             };
 
-            // Update totals
-            if (reservation.paymentMethod === 'efectivo') totalCash += reservation.precioTotal;
-            if (reservation.paymentMethod === 'tarjeta') totalCard += reservation.precioTotal;
-            if (reservation.paymentMethod === 'transferencia') totalTransfer += reservation.precioTotal;
+            // Procesar pagos usando la misma lógica que Billing
+            if (Array.isArray(reservation.payments)) {
+                reservation.payments.forEach(payment => {
+                    if (payment.method && payment.amount) {
+                        montos[payment.method] += Number(payment.amount);
+                    }
+                });
+            }
+
+            const totalPagado = Object.values(montos).reduce((sum, amount) => sum + amount, 0);
+            const pendiente = precioTotal - totalPagado;
+
+            const row = {
+                fechaReserva: moment(reservation.time || reservation.createdAt).toDate(),
+                name: reservation.name || '',
+                surname: reservation.surname || '',
+                room: Array.isArray(reservation.room) ? reservation.room.join(', ') : reservation.room || '',
+                roomType: reservation.roomType || '',
+                checkIn: moment(reservation.start).toDate(),
+                checkOut: moment(reservation.end).toDate(),
+                nights: reservation.nights || 0,
+                guests: reservation.numberOfGuests || 0,
+                total: precioTotal,
+                efectivo: montos.efectivo,
+                tarjeta: montos.tarjeta,
+                transferencia: montos.transferencia,
+                pending: pendiente,
+                paymentStatus: mapPaymentStatus(reservation.billingStatus),
+                roomStatus: mapRoomStatus(reservation.housekeepingStatus),
+                receptionist: reservation.nombre_recepcionista || '',
+                comments: reservation.comments || ''
+            };
+
+            worksheet.addRow(row);
+
+            // Actualizar totales
+            totales.noches += row.nights;
+            totales.huespedes += row.guests;
+            totales.total += precioTotal;
+            totales.efectivo += montos.efectivo;
+            totales.tarjeta += montos.tarjeta;
+            totales.transferencia += montos.transferencia;
+            totales.pendiente += pendiente;
         });
 
-        // Add totals row
-        const totalsRow = worksheet.addRow({
+        // Agregar fila de totales
+        worksheet.addRow({});
+        const totalRow = worksheet.addRow({
             name: 'TOTALES',
-            cash: totalCash,
-            card: totalCard,
-            transfer: totalTransfer,
-            total: totalCash + totalCard + totalTransfer
+            nights: totales.noches,
+            guests: totales.huespedes,
+            total: totales.total,
+            efectivo: totales.efectivo,
+            tarjeta: totales.tarjeta,
+            transferencia: totales.transferencia,
+            pending: totales.pendiente
         });
 
-        // Style totals row
-        totalsRow.font = { bold: true };
-        totalsRow.fill = {
+        totalRow.font = { bold: true };
+        totalRow.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'E6E6E6' }
+            fgColor: { argb: 'FFE6E6E6' }
         };
 
-        // Format number columns
-        ['H', 'I', 'J', 'K'].forEach(col => {
-            worksheet.getColumn(col).numFmt = '"$"#,##0.00';
-            worksheet.getColumn(col).alignment = { horizontal: 'right' };
-        });
-
-        // Add borders
+        // Aplicar bordes
         worksheet.eachRow((row) => {
-            row.eachCell((cell) => {
+            row.eachCell({ includeEmpty: true }, cell => {
                 cell.border = {
                     top: { style: 'thin' },
                     left: { style: 'thin' },
@@ -270,23 +177,44 @@ router.get('/export-detailed', async (req, res) => {
             });
         });
 
-        // Add report metadata
-        worksheet.addRow([]);
-        worksheet.addRow(['Reporte generado:', moment().format('DD/MM/YYYY HH:mm:ss')]);
-        worksheet.addRow(['Período:', `${moment(startDate).format('DD/MM/YYYY')} - ${moment(endDate).format('DD/MM/YYYY')}`]);
+        const buffer = await workbook.xlsx.writeBuffer();
 
-        // Set response headers
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=reporte-${moment().format('YYYY-MM-DD')}.xlsx`);
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename=reporte-reservas-${moment().format('YYYYMMDD')}.xlsx`,
+            'Content-Length': buffer.length
+        });
 
-        // Write to response
-        await workbook.xlsx.write(res);
-        res.end();
+        res.send(buffer);
 
     } catch (error) {
-        console.error('Error exporting Excel:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Error:', error);
+        res.status(500).json({
+            message: "Error generando Excel",
+            error: error.message
+        });
     }
 });
+
+function mapPaymentStatus(status) {
+    const statuses = {
+        'pendiente': 'Pendiente',
+        'pagado': 'Pagado',
+        'pagado_efectivo': 'Pagado (Efectivo)',
+        'pagado_tarjeta': 'Pagado (Tarjeta)',
+        'pagado_transferencia': 'Pagado (Transferencia)'
+    };
+    return statuses[status] || status;
+}
+
+function mapRoomStatus(status) {
+    const statuses = {
+        'limpio': 'Limpio',
+        'sucio': 'Sucio',
+        'mantenimiento': 'Mantenimiento',
+        'pendiente': 'Pendiente'
+    };
+    return statuses[status] || status;
+}
 
 module.exports = router;
