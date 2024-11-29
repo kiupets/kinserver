@@ -366,14 +366,16 @@ app.post("/create-reservation", async (req, res) => {
         user: userId,
         payments: payments,        // Agregar los pagos
         totalPaid: totalPaid,     // Agregar el total pagado
-        montoPendiente: montoPendiente // Actualizar monto pendiente
+        montoPendiente: montoPendiente, // Actualizar monto pendiente
+        roomStatus: reservationData.roomStatus || 'disponible'
       }))
       : [{
         ...reservationData,
         user: userId,
         payments: payments,
         totalPaid: totalPaid,
-        montoPendiente: montoPendiente
+        montoPendiente: montoPendiente,
+        roomStatus: reservationData.roomStatus || 'disponible'
       }];
 
     const createdReservations = await Reservation.insertMany(reservations);
@@ -427,6 +429,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       userId,
       nombre_recepcionista,
       payments,
+      roomStatus,
     } = req.body;
     const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
     if (totalPaid > precioTotal) {
@@ -473,6 +476,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         payments,
         totalPaid,
         montoPendiente,
+        roomStatus,
       },
       { new: true }
     );

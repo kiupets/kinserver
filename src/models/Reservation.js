@@ -128,10 +128,23 @@ const reservationSchema = new mongoose.Schema({
     enum: ['pendiente', 'pagado_efectivo', 'pagado_tarjeta', 'pagado_transferencia'],
     default: 'pendiente'
   },
-  housekeepingStatus: {
+  billingStatus: {
     type: String,
-    enum: ['pendiente', 'limpio', 'reparacion', 'faltan-fundas', 'faltan-sabanas', 'falta-limpiar'],
+    enum: ['pendiente', 'pagado_efectivo', 'pagado_tarjeta', 'pagado_transferencia'],
     default: 'pendiente'
+  },
+  roomStatus: {
+    type: String,
+    enum: [
+      'disponible',
+      'ocupada',
+      'limpieza',
+      'mantenimiento',
+      'bloqueada',
+      'checkout_pendiente',
+      'reservada'
+    ],
+    default: 'disponible'
   },
   guestDNIs: {
     type: [String]
