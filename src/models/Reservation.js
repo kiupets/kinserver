@@ -83,10 +83,7 @@ const reservationSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  isDragging: {
-    type: Boolean,
-    default: false
-  },
+
   isBooking: {
     type: Boolean,
     default: false
@@ -119,6 +116,9 @@ const reservationSchema = new mongoose.Schema({
   },
   guestNames: {
     type: [String]
+  },
+  dragging: {
+    type: Boolean
   },
   surname: {
     type: String

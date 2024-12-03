@@ -400,7 +400,7 @@ app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
     const {
-      // isDragging,
+      dragging,
       name,
       email,
       phone,
@@ -477,6 +477,7 @@ app.put("/update-reservation/:id", async (req, res) => {
         totalPaid,
         montoPendiente,
         roomStatus,
+        dragging,
       },
       { new: true }
     );
@@ -615,7 +616,32 @@ app.put("/edit-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// En el backend (index.js), añadir nuevo endpoint:
+// app.put("/undo-reservation/:id", async (req, res) => {
+//   try {
+//     const { id, oldPosition } = req.body;
+//     const userId = req.query.userId;
 
+//     const updatedReservation = await Reservation.findByIdAndUpdate(
+//       id,
+//       {
+//         start: oldPosition.start,
+//         end: oldPosition.end,
+//         room: oldPosition.room
+//       },
+//       { new: true }
+//     );
+
+//     const userSockets = connectedUsers.filter((user) => user.user === userId);
+//     userSockets.forEach((userSocket) => {
+//       io.to(userSocket.socketId).emit("updateReservation", [updatedReservation]);
+//     });
+
+//     res.status(200).json({ message: "Undo successful", reservation: updatedReservation });
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
 // Helper function to update and emit payment method totals
 async function updateAndEmitPaymentMethodTotals(userId) {
   const currentDate = new Date();
