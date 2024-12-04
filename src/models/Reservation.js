@@ -6,11 +6,11 @@ const paymentSchema = new mongoose.Schema({
   method: {
     type: String,
     enum: ['efectivo', 'tarjeta', 'transferencia'],
-    required: true
+    // required: true
   },
   amount: {
     type: Number,
-    required: true,
+    // required: true,
     min: 0
   },
   date: {
@@ -20,11 +20,11 @@ const paymentSchema = new mongoose.Schema({
   recepcionista: {
     type: String,
     enum: ['gonzalo', 'matias', 'gabriela', 'daniela', 'priscila', 'maxi'],
-    required: [true, 'El recepcionista es requerido']
+    // required: [true, 'El recepcionista es requerido']
   },
   montoPendiente: {
     type: Number,
-    required: true
+    // required: true
   }
 });
 paymentSchema.pre('save', function (next) {
@@ -45,11 +45,11 @@ const reservationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: [true, 'El usuario es requerido']
+    // required: [true, 'El usuario es requerido']
   },
   name: {
     type: String,
-    required: [true, 'El nombre es requerido']
+    // required: [true, 'El nombre es requerido']
   },
   email: {
     type: String,
