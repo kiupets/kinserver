@@ -54,31 +54,31 @@ const reservationSchema = new mongoose.Schema({
   email: {
     type: String,
     // Validación básica de email
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Por favor ingrese un email válido']
+    // match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Por favor ingrese un email válido']
   },
   phone: {
     type: Schema.Types.Mixed
   },
   room: {
     type: [String],
-    required: [true, 'La habitación es requerida']
+    // required: [true, 'La habitación es requerida']
   },
   start: {
     type: Date,
-    required: [true, 'La fecha de inicio es requerida']
+    // required: [true, 'La fecha de inicio es requerida']
   },
   end: {
     type: Date,
-    required: [true, 'La fecha de fin es requerida']
+    // required: [true, 'La fecha de fin es requerida']
   },
   price: {
     type: Number,
-    required: [true, 'El precio es requerido'],
+    // required: [true, 'El precio es requerido'],
     min: [0, 'El precio no puede ser negativo']
   },
   precioTotal: {
     type: Number,
-    required: [true, 'El precio total es requerido'],
+    // required: [true, 'El precio total es requerido'],
     min: [0, 'El precio total no puede ser negativo']
   },
   nights: {
