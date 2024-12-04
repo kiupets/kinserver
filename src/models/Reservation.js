@@ -16,9 +16,31 @@ const paymentSchema = new mongoose.Schema({
   date: {
     type: Date,
     default: Date.now
+  },
+  recepcionista: {
+    type: String,
+    enum: ['gonzalo', 'matias', 'gabriela', 'daniela', 'priscila', 'maxi'],
+    required: [true, 'El recepcionista es requerido']
+  },
+  montoPendiente: {
+    type: Number,
+    required: true
   }
 });
+paymentSchema.pre('save', function (next) {
+  if (!this.parent()) {
+    return next();
+  }
 
+  // Obtener el documento padre (la reservación)
+  const reservation = this.parent();
+  const totalPaid = reservation.payments.reduce((sum, payment) => {
+    return sum + (payment === this ? 0 : payment.amount);
+  }, 0) + this.amount;
+
+  this.montoPendiente = Math.max(0, reservation.precioTotal - totalPaid);
+  next();
+});
 const reservationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -161,32 +183,54 @@ const reservationSchema = new mongoose.Schema({
     }
   }
 }, {
-  timestamps: true // Agregar timestamps para la reservación
-});
+  timestamps: true,
 
-// Middleware pre-save mejorado para calcular totales
-// Middleware pre-save mejorado
+});
+// Agregar virtual para billingStatus
 reservationSchema.pre('save', function (next) {
-  // Calcular total pagado
+  // Calcular totales
   if (this.payments && Array.isArray(this.payments)) {
     this.totalPaid = this.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    this.montoPendiente = Math.max(0, this.precioTotal - this.totalPaid);
+
+    // Actualizar billingStatus basado en los pagos
+    if (this.payments.length === 0) {
+      this.billingStatus = 'pendiente';
+    } else if (this.totalPaid >= this.precioTotal) {
+      const lastPayment = this.payments[this.payments.length - 1];
+      this.billingStatus = `pagado_${lastPayment.method}`;
+    } else {
+      this.billingStatus = 'pendiente';
+    }
+  } else {
+    this.totalPaid = 0;
+    this.montoPendiente = this.precioTotal;
+    this.billingStatus = 'pendiente';
   }
-
-  // Calcular monto pendiente (nunca debe ser negativo)
-  this.montoPendiente = Math.max(0, (this.precioTotal || 0) - (this.totalPaid || 0));
-
   next();
 });
 
-// Validación para payments
-reservationSchema.path('payments').validate(function (payments) {
-  if (!payments) return true;
+// Validación para los pagos
+paymentSchema.pre('validate', function (next) {
+  if (this.amount <= 0) {
+    next(new Error('El monto del pago debe ser mayor que 0'));
+    return;
+  }
+  next();
+});
 
-  const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
-  // Permitir que el total de pagos sea igual al precio total
-  return totalPayments <= (this.precioTotal || 0);
-}, 'El total de pagos no puede exceder el precio total de la reserva');
+// Validación para el total de pagos
+reservationSchema.pre('validate', function (next) {
+  if (this.payments && Array.isArray(this.payments)) {
+    const totalPayments = this.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    if (totalPayments > this.precioTotal) {
+      next(new Error('El total de pagos no puede exceder el precio total'));
+      return;
+    }
+  }
+  next();
+});
 
 const Reservation = mongoose.model("Reservation", reservationSchema);
 
-module.exports = Reservation; 
+module.exports = Reservation;

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { createReservation } = require('../controllers/paymentController');
+const { updateReservationPayments, getYearlySummary } = require('../controllers/paymentController');
 
-router.post('/create-reservation', createReservation);
+router.put('/reservations/:id/payments', updateReservationPayments);
+router.get('/yearly-summary/:userId/:year', getYearlySummary);
 
 module.exports = router; 

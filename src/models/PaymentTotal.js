@@ -112,9 +112,81 @@ paymentTotalSchema.virtual('percentages').get(function () {
     };
 });
 
-// Método estático para obtener resumen mensual
+// Método estático para calcular totales desde las reservaciones
+paymentTotalSchema.statics.calculateTotalsFromReservations = async function (userId, month, year) {
+    const Reservation = mongoose.model('Reservation');
+
+    // Obtener el primer y último día del mes
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    // Buscar todas las reservaciones del mes con pagos
+    const reservations = await Reservation.find({
+        user: userId,
+        'payments.date': {
+            $gte: startDate,
+            $lte: endDate
+        }
+    });
+
+    // Inicializar contadores
+    const totals = {
+        efectivo: 0,
+        tarjeta: 0,
+        transferencia: 0
+    };
+
+    const counts = {
+        efectivo: 0,
+        tarjeta: 0,
+        transferencia: 0
+    };
+
+    let totalPayments = 0;
+    let totalCount = 0;
+
+    // Calcular totales desde los pagos
+    reservations.forEach(reservation => {
+        reservation.payments.forEach(payment => {
+            const paymentDate = new Date(payment.date);
+            if (paymentDate >= startDate && paymentDate <= endDate) {
+                totals[payment.method] += payment.amount;
+                counts[payment.method]++;
+                totalPayments += payment.amount;
+                totalCount++;
+            }
+        });
+    });
+
+    // Crear o actualizar el registro de PaymentTotal
+    const paymentTotal = await this.findOneAndUpdate(
+        { userId, month, year },
+        {
+            $set: {
+                efectivo: totals.efectivo,
+                tarjeta: totals.tarjeta,
+                transferencia: totals.transferencia,
+                total: totalPayments,
+                paymentDetails: [
+                    { method: 'efectivo', amount: totals.efectivo, count: counts.efectivo },
+                    { method: 'tarjeta', amount: totals.tarjeta, count: counts.tarjeta },
+                    { method: 'transferencia', amount: totals.transferencia, count: counts.transferencia }
+                ],
+                totalReservations: reservations.length,
+                averagePaymentAmount: totalCount > 0 ? totalPayments / totalCount : 0,
+                lastUpdated: new Date()
+            }
+        },
+        { upsert: true, new: true }
+    );
+
+    return paymentTotal;
+};
+
+// Actualizar el método getMonthlyStats para usar el nuevo cálculo
 paymentTotalSchema.statics.getMonthlyStats = async function (userId, month, year) {
-    const stats = await this.findOne({ userId, month, year });
+    // Primero calculamos los totales desde las reservaciones
+    const stats = await this.calculateTotalsFromReservations(userId, month, year);
     if (!stats) return null;
 
     return {
@@ -129,6 +201,53 @@ paymentTotalSchema.statics.getMonthlyStats = async function (userId, month, year
         averagePaymentAmount: stats.averagePaymentAmount,
         totalReservations: stats.totalReservations
     };
+};
+
+// Agregar este nuevo método estático después de getMonthlyStats
+paymentTotalSchema.statics.getYearlySummary = async function (userId, year) {
+    const Reservation = mongoose.model('Reservation');
+
+    // Obtener el primer y último día del año
+    const startDate = new Date(year, 0, 1);
+    const endDate = new Date(year, 11, 31, 23, 59, 59);
+
+    // Buscar todas las reservaciones del año
+    const reservations = await Reservation.find({
+        user: userId,
+        'payments.date': {
+            $gte: startDate,
+            $lte: endDate
+        }
+    });
+
+    // Inicializar array para almacenar datos mensuales
+    const monthlyData = Array(12).fill().map(() => ({
+        efectivo: 0,
+        tarjeta: 0,
+        transferencia: 0,
+        total: 0
+    }));
+
+    // Calcular totales mensuales desde los pagos
+    reservations.forEach(reservation => {
+        reservation.payments.forEach(payment => {
+            const paymentDate = new Date(payment.date);
+            if (paymentDate >= startDate && paymentDate <= endDate) {
+                const month = paymentDate.getMonth();
+                monthlyData[month][payment.method] += payment.amount;
+                monthlyData[month].total += payment.amount;
+            }
+        });
+    });
+
+    // Formatear datos para la respuesta
+    return monthlyData.map((data, index) => ({
+        month: index + 1,
+        efectivo: data.efectivo,
+        tarjeta: data.tarjeta,
+        transferencia: data.transferencia,
+        total: data.total
+    }));
 };
 
 const PaymentTotal = mongoose.model('PaymentTotal', paymentTotalSchema);

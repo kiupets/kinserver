@@ -22,7 +22,7 @@ const drinkRoutes = require('./src/routes/drinks');
 // const authRoutes = require('./routes/auth');
 const paymentTotalsRoutes = require('./src/routes/paymentTotals');
 const guestRoutes = require('./src/routes/guest');
-const excelExportRoutes = require('./src/routes/excelExport2');
+const excelExportRoutes = require('./src/routes/excelExport');
 
 
 
@@ -344,6 +344,7 @@ app.get("/all", async (req, res) => {
   }
 });
 
+// En index.js - Corregir create-reservation
 app.post("/create-reservation", async (req, res) => {
   try {
     const { reservationData } = req.body;
@@ -355,28 +356,45 @@ app.post("/create-reservation", async (req, res) => {
 
     // Procesar pagos y calcular totales
     const payments = reservationData.payments || [];
-    const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-    const montoPendiente = reservationData.precioTotal - totalPaid;
+    const precioTotal = parseFloat(reservationData.precioTotal);
+    let totalPaidSoFar = 0;
+
+    // Agregar montoPendiente a cada pago
+    const processedPayments = payments.map(payment => {
+      const amount = parseFloat(payment.amount);
+      totalPaidSoFar += amount;
+      return {
+        ...payment,
+        amount,
+        montoPendiente: precioTotal - totalPaidSoFar
+      };
+    });
+
+    // Validar que el total pagado no exceda el precio total
+    if (totalPaidSoFar > precioTotal) {
+      return res.status(400).json({
+        message: "El total de pagos no puede exceder el precio total"
+      });
+    }
 
     // Crear las reservas para cada habitación seleccionada
+    const reservationBase = {
+      ...reservationData,
+      user: userId,
+      payments: processedPayments,
+      totalPaid: totalPaidSoFar,
+      montoPendiente: precioTotal - totalPaidSoFar,
+      price: parseFloat(reservationData.price),
+      precioTotal: precioTotal,
+      roomStatus: reservationData.roomStatus || 'disponible'
+    };
+
     const reservations = Array.isArray(reservationData.room)
       ? reservationData.room.map(room => ({
-        ...reservationData,
-        room,
-        user: userId,
-        payments: payments,        // Agregar los pagos
-        totalPaid: totalPaid,     // Agregar el total pagado
-        montoPendiente: montoPendiente, // Actualizar monto pendiente
-        roomStatus: reservationData.roomStatus || 'disponible'
+        ...reservationBase,
+        room
       }))
-      : [{
-        ...reservationData,
-        user: userId,
-        payments: payments,
-        totalPaid: totalPaid,
-        montoPendiente: montoPendiente,
-        roomStatus: reservationData.roomStatus || 'disponible'
-      }];
+      : [{ ...reservationBase }];
 
     const createdReservations = await Reservation.insertMany(reservations);
 
@@ -385,6 +403,8 @@ app.post("/create-reservation", async (req, res) => {
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("reservationCreated", createdReservations);
     });
+
+    await updateAndEmitPaymentMethodTotals(userId);
 
     res.status(200).json({
       message: "Reservations created successfully",
@@ -395,93 +415,58 @@ app.post("/create-reservation", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
+// En index.js - Actualizar la ruta update-reservation
 app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
     const {
-      dragging,
-      name,
-      email,
-      phone,
-      rooms,
-      newRooms,
-      start,
-      end,
-      isOverlapping,
-      price,
-      nights,
-      comments,
-      precioTotal,
-      adelanto,
-      time,
-      // montoPendiente,
-      dni,
-      paymentMethod,
-      numberOfGuests,
-      guestNames,
-      guestDNIs,
-      roomType,
-      isBooking,
-      surname,
-      billingStatus,
-      housekeepingStatus,
-      userId,
-      nombre_recepcionista,
       payments,
-      roomStatus,
+      precioTotal,
+      newRooms,
+      userId,
+      ...otherData
     } = req.body;
-    const totalPaid = payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
-    if (totalPaid > precioTotal) {
+
+    const parsedPrecioTotal = parseFloat(precioTotal);
+    let totalPaidSoFar = 0;
+
+    // Procesar pagos y agregar montoPendiente
+    const processedPayments = payments?.map(payment => {
+      const amount = parseFloat(payment.amount);
+      totalPaidSoFar += amount;
+      return {
+        ...payment,
+        amount,
+        montoPendiente: parsedPrecioTotal - totalPaidSoFar
+      };
+    }) || [];
+
+    if (totalPaidSoFar > parsedPrecioTotal) {
       return res.status(400).json({
-        error: "El total de pagos no puede exceder el precio total"
+        message: "El total de pagos no puede exceder el precio total"
       });
     }
-    const montoPendiente = Math.max(0, precioTotal - totalPaid);
-    const existingReservation = await Reservation.findById(reservationId);
-    if (!existingReservation) {
-      return res.status(404).json({ message: "Reservation not found" });
-    }
+
+    const updateData = {
+      ...otherData,
+      payments: processedPayments,
+      precioTotal: parsedPrecioTotal,
+      totalPaid: totalPaidSoFar,
+      montoPendiente: parsedPrecioTotal - totalPaidSoFar
+    };
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
+      updateData,
       {
-
-        user: userId,
-        name,
-        email,
-        phone,
-        room: rooms,
-        start,
-        end,
-        time,
-        isOverlapping,
-        comments,
-        adelanto,
-        nombre_recepcionista,
-        montoPendiente,
-        dni,
-        paymentMethod,
-        numberOfGuests,
-        guestNames,
-        guestDNIs,
-        roomType,
-        isBooking,
-        surname,
-        billingStatus,
-        housekeepingStatus,
-        price: parseFloat(price),
-        nights: parseInt(nights),
-        precioTotal: parseFloat(precioTotal),
-        payments,
-        totalPaid,
-        montoPendiente,
-        roomStatus,
-        dragging,
-      },
-      { new: true }
+        new: true,
+        runValidators: true
+      }
     );
+
     let allUpdatedReservations = [updatedReservation];
+
+    // Procesar nuevas habitaciones si existen
     if (Array.isArray(newRooms) && newRooms.length > 0) {
       const newReservations = await Promise.all(newRooms.map(async (room) => {
         const newReservation = new Reservation({
@@ -497,7 +482,6 @@ app.put("/update-reservation/:id", async (req, res) => {
     await updateAndEmitPaymentMethodTotals(userId);
 
     const userSockets = connectedUsers.filter((user) => user.user === userId);
-
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
     });
@@ -507,6 +491,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       reservations: allUpdatedReservations,
     });
   } catch (error) {
+    console.error('Error updating reservation:', error);
     res.status(500).json({ error: error.message });
   }
 });
