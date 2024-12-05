@@ -424,10 +424,16 @@ app.put("/update-reservation/:id", async (req, res) => {
       precioTotal,
       newRooms,
       userId,
+      dragging,  // Extraemos dragging explícitamente
+      rooms,     // Extraemos rooms
+      start,     // Extraemos start
+      end,       // Extraemos end
       ...otherData
     } = req.body;
 
-    const parsedPrecioTotal = parseFloat(precioTotal);
+    console.log('Update data received:', { dragging, rooms, start, end });
+
+    const parsedPrecioTotal = parseFloat(precioTotal || 0);
     let totalPaidSoFar = 0;
 
     // Procesar pagos y agregar montoPendiente
@@ -441,19 +447,19 @@ app.put("/update-reservation/:id", async (req, res) => {
       };
     }) || [];
 
-    if (totalPaidSoFar > parsedPrecioTotal) {
-      return res.status(400).json({
-        message: "El total de pagos no puede exceder el precio total"
-      });
-    }
-
     const updateData = {
       ...otherData,
+      dragging,           // Incluimos dragging en updateData
+      room: rooms,        // Usamos rooms como room
+      start: new Date(start),  // Convertimos a Date
+      end: new Date(end),      // Convertimos a Date
       payments: processedPayments,
       precioTotal: parsedPrecioTotal,
       totalPaid: totalPaidSoFar,
       montoPendiente: parsedPrecioTotal - totalPaidSoFar
     };
+
+    console.log('Final update data:', updateData);
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
@@ -466,21 +472,7 @@ app.put("/update-reservation/:id", async (req, res) => {
 
     let allUpdatedReservations = [updatedReservation];
 
-    // Procesar nuevas habitaciones si existen
-    if (Array.isArray(newRooms) && newRooms.length > 0) {
-      const newReservations = await Promise.all(newRooms.map(async (room) => {
-        const newReservation = new Reservation({
-          ...updatedReservation.toObject(),
-          _id: undefined,
-          room: room,
-        });
-        return await newReservation.save();
-      }));
-      allUpdatedReservations = [...allUpdatedReservations, ...newReservations];
-    }
-
-    await updateAndEmitPaymentMethodTotals(userId);
-
+    // Emit socket update
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
