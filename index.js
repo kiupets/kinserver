@@ -443,6 +443,7 @@ app.put("/update-reservation/:id", async (req, res) => {
       return {
         ...payment,
         amount,
+        recepcionista: payment.recepcionista || null, // Aseguramos que sea null si no hay valor
         montoPendiente: parsedPrecioTotal - totalPaidSoFar
       };
     }) || [];
