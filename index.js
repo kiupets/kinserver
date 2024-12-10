@@ -41,7 +41,15 @@ const excelExportRoutes = require('./src/routes/excelExport');
 // });
 
 
-
+const io = new Server(server, {
+  cors: {
+    // origin: process.env.NODE_ENV === "production" 
+    // ? "https://hotelexpress.onrender.com" 
+    origin: process.env.REACT_APP_SOCKET_URL,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  },
+});
 
 
 
@@ -89,15 +97,6 @@ const corsOptions = {
   credentials: true,
 };
 app.use(cors(corsOptions));
-const io = new Server(server, {
-  cors: {
-    // origin: process.env.NODE_ENV === "production" 
-    // ? "https://hotelexpress.onrender.com" 
-    origin: process.env.REACT_APP_SOCKET_URL,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  },
-});
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'sessions',
