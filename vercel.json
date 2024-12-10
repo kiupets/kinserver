@@ -1,11 +1,6 @@
 {
     "version": 2,
     "functions": {
-      "api/**/*.js": {
-        "runtime": "@vercel/node@3.0.0",
-        "memory": 1024,
-        "maxDuration": 10
-      },
       "index.js": {
         "runtime": "@vercel/node@3.0.0",
         "memory": 1024,
@@ -16,10 +11,6 @@
       {
         "src": "/socket.io/(.*)",
         "dest": "/index.js"
-      },
-      {
-        "src": "/api/(.*)",
-        "dest": "/api/$1"
       },
       {
         "src": "/(.*)",
