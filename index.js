@@ -774,13 +774,13 @@ const gananciasSaveRouter = require('./src/routes/gananciasSave');
 //   },
 // });
 
-const corsOptions = {
-  origin: process.env.NODE_ENV === "production"
-    ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
-    : "http://localhost:3000",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-};
+// const corsOptions = {
+//   origin: process.env.NODE_ENV === "production"
+//     ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+//     : "http://localhost:3000",
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   credentials: true,
+// };
 
 
 
@@ -821,7 +821,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
 
 // const io = new Server(server, {
 //   cors: {
@@ -838,17 +838,26 @@ app.use(cors(corsOptions));
 
 const io = new Server(server, {
   cors: {
-    origin: ["https://hotelexpress-e3bu.vercel.app", "http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: process.env.NODE_ENV === "production"
+      ? "https://hotelexpress-e3bu.vercel.app"
+      : "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"]
   },
-  path: "/socket.io/",
-  allowEIO3: true,
   transports: ['polling', 'websocket'],
-  pingTimeout: 30000,
-  pingInterval: 25000
+  path: "/socket.io/"
 });
+
+// Configuración de CORS para Express
+const corsOptions = {
+  origin: process.env.NODE_ENV === "production"
+    ? "https://hotelexpress-e3bu.vercel.app"
+    : "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 
 server.prependListener("request", (req, res) => {
