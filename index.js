@@ -41,14 +41,26 @@ const excelExportRoutes = require('./src/routes/excelExport');
 // });
 
 
+// const io = new Server(server, {
+//   cors: {
+//     // origin: process.env.NODE_ENV === "production" 
+//     // ? "https://hotelexpress.onrender.com" 
+//     origin: process.env.REACT_APP_SOCKET_URL,
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+//   },
+// });
 const io = new Server(server, {
   cors: {
-    // origin: process.env.NODE_ENV === "production" 
-    // ? "https://hotelexpress.onrender.com" 
-    origin: process.env.REACT_APP_SOCKET_URL,
+    origin: process.env.NODE_ENV === "production"
+      ? "https://hotelexpress.onrender.com"
+      : "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   },
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
 });
 
 
@@ -221,9 +233,7 @@ io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
 
-  // Test event
-  socket.emit("testEvent", { message: "Socket is working!" });
-
+  // Store user connection
   const existingUserIndex = connectedUsers.findIndex(
     (user) => user.user === userId
   );
@@ -235,7 +245,9 @@ io.on("connection", (socket) => {
     }
   }
 
+  // Handle disconnection
   socket.on("disconnect", () => {
+    console.log(`User disconnected: ${userId}`);
     for (let i = 0; i < connectedUsers.length; i++) {
       const user = connectedUsers[i];
       const index = user.socketId.indexOf(socket.id);
