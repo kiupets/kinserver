@@ -831,7 +831,9 @@ app.use(cors(corsOptions));
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.REACT_APP_SOCKET_URL,
+    origin: process.env.NODE_ENV === "production"
+      ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+      : "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
