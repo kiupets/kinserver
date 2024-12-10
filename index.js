@@ -71,78 +71,140 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// MongoDB connection
-mongoose.connect(MONGODB_URI, {
+// // MongoDB connection
+// mongoose.connect(MONGODB_URI, {
+//   useNewUrlParser: true,
+//   useUnifiedTopology: true,
+// });
+
+// // Session store configuration
+
+
+
+
+// // Middleware
+// app.use(express.json());
+// app.use(express.urlencoded({ extended: true }));
+
+
+
+
+
+// // const corsOptions = {
+// //   origin: process.env.NODE_ENV === "production"
+// //     ? "https://hotelexpress.onrender.com"
+// //     : "http://localhost:3000",
+// //   methods: ["GET", "POST", "PUT", "DELETE"],
+// //   credentials: true,
+// // };
+// // app.use(cors(corsOptions));
+// // Store configuration
+
+// // CORS configuration
+// // const corsOptions = {
+// //   origin: process.env.NODE_ENV === "production"
+// //     ? "https://hotelexpress.onrender.com"
+// //     : "http://localhost:3000",
+// //   methods: ["GET", "POST", "PUT", "DELETE"],
+// //   credentials: true,
+// // };
+// app.use(cors(corsOptions));
+
+// const io = new Server(server, {
+//   cors: {
+//     origin: process.env.REACT_APP_SOCKET_URL,
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+//   },
+// });
+
+// const store = new MongoDBStore({
+//   uri: MONGODB_URI,
+//   collection: 'sessions',
+//   expires: 1000 * 60 * 60 * 24, // 1 día
+//   autoRemove: 'native'
+// });
+// app.use(session({
+//   // secret: process.env.SESSION_SECRET,
+//   // cookie: {
+//   //   maxAge: 1000 * 60 * 60 * 24, // 1 day
+//   //   httpOnly: true,
+//   //   secure: process.env.NODE_ENV === "production",
+//   //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
+//   // },
+//   secret: process.env.SESSION_SECRET,
+//   cookie: {
+//     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+//     secure: true,
+//     sameSite: 'none',
+//     httpOnly: true
+//   },
+//   store: store,
+//   resave: false,
+//   saveUninitialized: false,
+// }));
+// CORS
+app.use(cors({
+  origin: [process.env.REACT_APP_SOCKET_URL, "http://localhost:3000"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE"]
+}));
+
+// Mongoose
+mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+}).then(() => {
+  console.log('MongoDB connected');
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
 });
 
-// Session store configuration
-
-
-
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-
-
-
-
-// const corsOptions = {
-//   origin: process.env.NODE_ENV === "production"
-//     ? "https://hotelexpress.onrender.com"
-//     : "http://localhost:3000",
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   credentials: true,
-// };
-// app.use(cors(corsOptions));
-// Store configuration
-
-// CORS configuration
-// const corsOptions = {
-//   origin: process.env.NODE_ENV === "production"
-//     ? "https://hotelexpress.onrender.com"
-//     : "http://localhost:3000",
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   credentials: true,
-// };
-app.use(cors(corsOptions));
-
+// Socket.IO con manejo de errores
 const io = new Server(server, {
   cors: {
-    origin: process.env.REACT_APP_SOCKET_URL,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
+    origin: [process.env.REACT_APP_SOCKET_URL, "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
   },
+  path: '/socket.io/'
 });
 
-const store = new MongoDBStore({
-  uri: MONGODB_URI,
-  collection: 'sessions',
-  expires: 1000 * 60 * 60 * 24, // 1 día
-  autoRemove: 'native'
+// Manejo de errores para Socket.IO
+io.on("connect_error", (err) => {
+  console.log(`connect_error due to ${err.message}`);
 });
+
+// Sesiones con manejo de errores
+const store = new MongoDBStore({
+  uri: process.env.MONGODB_URI,
+  collection: 'sessions'
+});
+
+store.on('error', function (error) {
+  console.log('Session store error:', error);
+});
+
 app.use(session({
-  // secret: process.env.SESSION_SECRET,
-  // cookie: {
-  //   maxAge: 1000 * 60 * 60 * 24, // 1 day
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-  // },
   secret: process.env.SESSION_SECRET,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+    maxAge: 1000 * 60 * 60 * 24,
     secure: true,
-    sameSite: 'none',
-    httpOnly: true
+    sameSite: 'none'
   },
   store: store,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: false
 }));
+
+// Manejador global de errores
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
 // Headers adicionales para asegurar el funcionamiento en móviles
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -189,16 +251,16 @@ store.on('error', (error) => {
   console.error('Session store error:', error);
 });
 
-app.use(session(sessionConfig));
-// Middleware para debug
-app.use((req, res, next) => {
-  console.log('Session debug:', {
-    sessionID: req.sessionID,
-    userId: req.session?.userId,
-    cookie: req.session?.cookie
-  });
-  next();
-});
+// app.use(session(sessionConfig));
+// // Middleware para debug
+// app.use((req, res, next) => {
+//   console.log('Session debug:', {
+//     sessionID: req.sessionID,
+//     userId: req.session?.userId,
+//     cookie: req.session?.cookie
+//   });
+//   next();
+// });
 // Headers adicionales para asegurar el funcionamiento en móviles
 // app.use((req, res, next) => {
 //   res.header('Access-Control-Allow-Credentials', 'true');

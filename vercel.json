@@ -3,18 +3,7 @@
     "functions": {
       "index.js": {
         "runtime": "@vercel/node@3.0.0",
-        "memory": 1024,
-        "maxDuration": 10
+        "memory": 1024
       }
-    },
-    "routes": [
-      {
-        "src": "/socket.io/(.*)",
-        "dest": "/index.js"
-      },
-      {
-        "src": "/(.*)",
-        "dest": "/index.js"
-      }
-    ]
+    }
   }
