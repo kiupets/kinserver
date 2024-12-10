@@ -62,13 +62,20 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 };
-
-const io = new Server(server, {
-  cors: {
-    origin: process.env.REACT_APP_SOCKET_URL,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  },
+app.use(cors(corsOptions));
+const store = new MongoDBStore({
+  uri: MONGODB_URI,
+  collection: 'sessions',
+  expires: 1000 * 60 * 60 * 24, // 1 día
+  autoRemove: 'native'
+});
+const socket = io(process.env.REACT_APP_SOCKET_URL, {
+  transports: ['websocket', 'polling'],
+  withCredentials: true,
+  path: '/socket.io/',
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000
 });
 
 // app.use('/excel', require('./routes/excelExport'));
@@ -114,13 +121,7 @@ app.use(express.urlencoded({ extended: true }));
 //   methods: ["GET", "POST", "PUT", "DELETE"],
 //   credentials: true,
 // };
-app.use(cors(corsOptions));
-const store = new MongoDBStore({
-  uri: MONGODB_URI,
-  collection: 'sessions',
-  expires: 1000 * 60 * 60 * 24, // 1 día
-  autoRemove: 'native'
-});
+
 app.use(session({
   // secret: process.env.SESSION_SECRET,
   // cookie: {
