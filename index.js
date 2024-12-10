@@ -819,14 +819,8 @@ app.use(express.urlencoded({ extended: true }));
 // app.use(cors(corsOptions));
 // Store configuration
 
-// CORS configuration
-// const corsOptions = {
-//   origin: process.env.NODE_ENV === "production"
-//     ? "https://hotelexpress.onrender.com"
-//     : "http://localhost:3000",
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   credentials: true,
-// };
+
+
 app.use(cors(corsOptions));
 
 // const io = new Server(server, {
@@ -838,20 +832,22 @@ app.use(cors(corsOptions));
 //     credentials: true,
 //   },
 // });
+// index.js - Server Configuration
+
+// index.js - Server Configuration
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === "production"
-      ? ["https://hotelexpress-e3bu.vercel.app", "https://hotelexpress.vercel.app"]
-      : "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: ["https://hotelexpress-e3bu.vercel.app", "http://localhost:3000"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ["my-custom-header"],
+    allowedHeaders: ["Content-Type", "Authorization"]
   },
+  path: "/socket.io/",
   allowEIO3: true,
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  transports: ['websocket', 'polling'],
-  path: "/socket.io/", // Changed path
+  transports: ['polling', 'websocket'],
+  pingTimeout: 30000,
+  pingInterval: 25000
 });
 
 
