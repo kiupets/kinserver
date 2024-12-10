@@ -45,17 +45,31 @@ const gananciasSaveRouter = require('./src/routes/gananciasSave');
 // });
 
 
+// const io = new Server(server, {
+//   cors: {
+//     // origin: process.env.NODE_ENV === "production" 
+//     // ? "https://hotelexpress.onrender.com" 
+//     origin: process.env.REACT_APP_SOCKET_URL,
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+//   },
+// });
+
+const corsOptions = {
+  origin: process.env.NODE_ENV === "production"
+    ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+    : "http://localhost:3000",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+};
+
 const io = new Server(server, {
   cors: {
-    // origin: process.env.NODE_ENV === "production" 
-    // ? "https://hotelexpress.onrender.com" 
     origin: process.env.REACT_APP_SOCKET_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
-
-
 
 // app.use('/excel', require('./routes/excelExport'));
 const PORT = process.env.PORT || 8000;
@@ -93,13 +107,13 @@ app.use(express.urlencoded({ extended: true }));
 // Store configuration
 
 // CORS configuration
-const corsOptions = {
-  origin: process.env.NODE_ENV === "production"
-    ? "https://hotelexpress.onrender.com"
-    : "http://localhost:3000",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-};
+// const corsOptions = {
+//   origin: process.env.NODE_ENV === "production"
+//     ? "https://hotelexpress.onrender.com"
+//     : "http://localhost:3000",
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   credentials: true,
+// };
 app.use(cors(corsOptions));
 const store = new MongoDBStore({
   uri: MONGODB_URI,
