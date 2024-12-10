@@ -841,19 +841,24 @@ app.use(cors(corsOptions));
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === "production"
-      ? "https://hotelexpress-e3bu.vercel.app"  // Your Vercel frontend URL
+      ? ["https://hotelexpress-e3bu.vercel.app", "https://hotelexpress.vercel.app"]
       : "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
-    transports: ['websocket', 'polling'],
-    allowEIO3: true
+    allowedHeaders: ["my-custom-header"],
   },
-  path: "/api/socket.io", // Important for Vercel
-  addTrailingSlash: false,
-  allowRequest: (req, callback) => {
-    // Custom logic for allowing connections
-    const noOriginHeader = req.headers.origin === undefined;
-    callback(null, true); // Allow all connections for now
+  allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  path: "/socket.io/", // Changed path
+});
+
+
+server.prependListener("request", (req, res) => {
+  if (req.headers.origin) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 });
 const store = new MongoDBStore({
