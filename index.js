@@ -55,27 +55,30 @@ const gananciasSaveRouter = require('./src/routes/gananciasSave');
 //   },
 // });
 
-const corsOptions = {
-  origin: process.env.NODE_ENV === "production"
-    ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
-    : "http://localhost:3000",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
-};
-app.use(cors(corsOptions));
+// const corsOptions = {
+//   origin: process.env.NODE_ENV === "production"
+//     ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+//     : "http://localhost:3000",
+//   methods: ["GET", "POST", "PUT", "DELETE"],
+//   credentials: true,
+// };
+app.use(cors({
+  origin: [process.env.REACT_APP_SOCKET_URL, "http://localhost:3000"],
+  credentials: true
+}));
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'sessions',
   expires: 1000 * 60 * 60 * 24, // 1 día
   autoRemove: 'native'
 });
-const socket = io(process.env.REACT_APP_SOCKET_URL, {
-  transports: ['websocket', 'polling'],
-  withCredentials: true,
-  path: '/socket.io/',
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000
+const io = new Server(server, {
+  cors: {
+    origin: [process.env.REACT_APP_SOCKET_URL, "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  path: '/socket.io/'
 });
 
 // app.use('/excel', require('./routes/excelExport'));
