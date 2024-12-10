@@ -829,16 +829,33 @@ app.use(express.urlencoded({ extended: true }));
 // };
 app.use(cors(corsOptions));
 
+// const io = new Server(server, {
+//   cors: {
+//     origin: process.env.NODE_ENV === "production"
+//       ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+//       : "http://localhost:3000",
+//     methods: ["GET", "POST", "PUT", "DELETE"],
+//     credentials: true,
+//   },
+// });
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === "production"
-      ? process.env.REACT_APP_SOCKET_URL  // Usará la URL de Vercel en producción
+      ? "https://hotelexpress-e3bu.vercel.app"  // Your Vercel frontend URL
       : "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
+    transports: ['websocket', 'polling'],
+    allowEIO3: true
   },
+  path: "/api/socket.io", // Important for Vercel
+  addTrailingSlash: false,
+  allowRequest: (req, callback) => {
+    // Custom logic for allowing connections
+    const noOriginHeader = req.headers.origin === undefined;
+    callback(null, true); // Allow all connections for now
+  }
 });
-
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'sessions',
@@ -967,7 +984,14 @@ const connectedUsers = [];
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
+  // Add error handling
+  socket.on("error", (error) => {
+    console.error("Socket error:", error);
+  });
 
+  socket.on("connect_error", (error) => {
+    console.error("Connection error:", error);
+  });
   // Test event
   socket.emit("testEvent", { message: "Socket is working!" });
 
