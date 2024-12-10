@@ -23,6 +23,10 @@ const drinkRoutes = require('./src/routes/drinks');
 const paymentTotalsRoutes = require('./src/routes/paymentTotals');
 const guestRoutes = require('./src/routes/guest');
 const excelExportRoutes = require('./src/routes/excelExport');
+const gananciasExportRouter = require('./src/routes/gananciasExport');
+const gananciasSaveRouter = require('./src/routes/gananciasSave');
+
+
 
 
 
@@ -209,6 +213,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/auth', authRoutes);
 // app.use("/reservations", reservationRoutes);
 app.use("/excel", excelExportRoutes); // Una sola ruta para excel
+app.use("/excel", gananciasExportRouter); // Una sola ruta para excel
+app.use('/', gananciasSaveRouter);  // Esto hará que las rutas sean /save-ganancias y /get-ganancias
+
+
+
 app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes);
