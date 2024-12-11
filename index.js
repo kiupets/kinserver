@@ -23,6 +23,8 @@ const drinkRoutes = require('./src/routes/drinks');
 const paymentTotalsRoutes = require('./src/routes/paymentTotals');
 const guestRoutes = require('./src/routes/guest');
 const excelExportRoutes = require('./src/routes/excelExport');
+const gananciasSaveRouter = require('./src/routes/gananciasSave');
+const gananciasExportRouter = require('./src/routes/gananciasExport')
 
 
 
@@ -224,6 +226,10 @@ app.use("/excel", excelExportRoutes); // Una sola ruta para excel
 app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes);
+app.use('/', gananciasSaveRouter);  // Esto hará que la ruta sea /api/save-ganancias
+app.use('/excel', gananciasExportRouter);
+
+
 
 
 // Socket.IO setup
@@ -378,7 +384,8 @@ app.post("/create-reservation", async (req, res) => {
       return {
         ...payment,
         amount,
-        montoPendiente: precioTotal - totalPaidSoFar
+        montoPendiente: precioTotal - totalPaidSoFar,
+        recepcionista: payment.recepcionista
       };
     });
 
@@ -436,42 +443,55 @@ app.put("/update-reservation/:id", async (req, res) => {
       precioTotal,
       newRooms,
       userId,
-      dragging,  // Extraemos dragging explícitamente
-      rooms,     // Extraemos rooms
-      start,     // Extraemos start
-      end,       // Extraemos end
+      dragging,
+      rooms,
+      start,
+      end,
+      nombre_recepcionista,
       ...otherData
     } = req.body;
 
-    console.log('Update data received:', { dragging, rooms, start, end });
+    console.log('Update data received:', {
+      dragging,
+      rooms,
+      start,
+      end,
+      payments,
+      nombre_recepcionista
+    });
 
     const parsedPrecioTotal = parseFloat(precioTotal || 0);
     let totalPaidSoFar = 0;
 
-    // Procesar pagos y agregar montoPendiente
+    // Mantener el recepcionista original de cada pago
     const processedPayments = payments?.map(payment => {
       const amount = parseFloat(payment.amount);
       totalPaidSoFar += amount;
       return {
         ...payment,
         amount,
-        recepcionista: payment.recepcionista || null, // Aseguramos que sea null si no hay valor
-        montoPendiente: parsedPrecioTotal - totalPaidSoFar
+        // Mantener el recepcionista original del pago sin modificar
+        recepcionista: payment.recepcionista,
+        montoPendiente: parsedPrecioTotal - totalPaidSoFar,
+        method: payment.method,
+        date: payment.date
       };
     }) || [];
 
     const updateData = {
       ...otherData,
-      dragging,           // Incluimos dragging en updateData
-      room: rooms,        // Usamos rooms como room
-      start: new Date(start),  // Convertimos a Date
-      end: new Date(end),      // Convertimos a Date
+      dragging,
+      room: rooms,
+      start: new Date(start),
+      end: new Date(end),
+      nombre_recepcionista,
       payments: processedPayments,
       precioTotal: parsedPrecioTotal,
       totalPaid: totalPaidSoFar,
       montoPendiente: parsedPrecioTotal - totalPaidSoFar
     };
 
+    console.log('Processed payments:', processedPayments);
     console.log('Final update data:', updateData);
 
     const updatedReservation = await Reservation.findByIdAndUpdate(
@@ -485,7 +505,6 @@ app.put("/update-reservation/:id", async (req, res) => {
 
     let allUpdatedReservations = [updatedReservation];
 
-    // Emit socket update
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       io.to(userSocket.socketId).emit("updateReservation", allUpdatedReservations);
@@ -500,7 +519,6 @@ app.put("/update-reservation/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-
 
 
 
