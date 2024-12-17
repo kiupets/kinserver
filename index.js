@@ -41,8 +41,8 @@ const excelExportRoutes = require('./src/routes/excelExport');
 const gananciasSaveRouter = require('./src/routes/gananciasSave');
 const gananciasExportRouter = require('./src/routes/gananciasExport')
 
-// const TensorFlowAgent = require('./src/agents/TensorFlowAgent');
-// const tfAgent = new TensorFlowAgent();
+const TensorFlowAgent = require('./src/agents/TensorFlowAgent');
+const tfAgent = new TensorFlowAgent();
 
 
 
@@ -393,7 +393,7 @@ app.post("/create-reservation", async (req, res) => {
       return res.status(400).json({ message: "Reservation data is missing" });
     }
 
-    // const aiAnalysis = await tfAgent.analyzeReservation(reservationData);
+    const aiAnalysis = await tfAgent.analyzeReservation(reservationData);
 
     // Procesar pagos y calcular totales
     const payments = reservationData.payments || [];
@@ -452,7 +452,7 @@ app.post("/create-reservation", async (req, res) => {
     res.status(200).json({
       message: "Reservations created successfully",
       reservations: createdReservations,
-      // aiInsights: aiAnalysis
+      aiInsights: aiAnalysis
     });
 
   } catch (error) {
