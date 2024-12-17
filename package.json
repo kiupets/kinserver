@@ -11,6 +11,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+       "@tensorflow/tfjs": "^4.17.0",
+    "@tensorflow/tfjs-node": "^4.17.0",
     "bcrypt": "^5.1.1",
     "connect-mongodb-session": "^5.0.0",
     "cors": "^2.8.5",

@@ -1,6 +1,15 @@
 // src/agents/TensorFlowAgent.js
-const tf = require('@tensorflow/tfjs');
-require('@tensorflow/tfjs-node');
+let tf;
+
+// Dynamic import based on environment
+if (process.env.NODE_ENV === 'production') {
+    tf = require('@tensorflow/tfjs');
+    // Load WASM backend for production
+    require('@tensorflow/tfjs-backend-wasm');
+} else {
+    tf = require('@tensorflow/tfjs-node');
+}
+
 const mongoose = require('mongoose');
 const Reservation = require('../models/Reservation');
 
@@ -8,26 +17,24 @@ class TensorFlowAgent {
     constructor() {
         this.model = null;
         this.initialized = false;
+        this.backend = process.env.NODE_ENV === 'production' ? 'wasm' : 'node';
     }
 
     async initialize() {
         try {
-            this.model = tf.sequential();
+            // Set backend based on environment
+            if (process.env.NODE_ENV === 'production') {
+                await tf.setBackend('wasm');
+            }
 
-            this.model.add(tf.layers.dense({
-                units: 64,
-                activation: 'relu',
-                inputShape: [7] // number of features
-            }));
-
-            this.model.add(tf.layers.dense({
-                units: 32,
-                activation: 'relu'
-            }));
-
-            this.model.add(tf.layers.dense({
-                units: 1
-            }));
+            // Create and compile model
+            this.model = tf.sequential({
+                layers: [
+                    tf.layers.dense({ inputShape: [7], units: 64, activation: 'relu' }),
+                    tf.layers.dense({ units: 32, activation: 'relu' }),
+                    tf.layers.dense({ units: 1 })
+                ]
+            });
 
             this.model.compile({
                 optimizer: 'adam',
@@ -35,7 +42,7 @@ class TensorFlowAgent {
             });
 
             this.initialized = true;
-            console.log('AI Model initialized');
+            console.log(`AI Model initialized with ${this.backend} backend`);
         } catch (error) {
             console.error('Error initializing model:', error);
             throw error;

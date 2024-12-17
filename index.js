@@ -1,3 +1,15 @@
+// At the top of your index.js
+if (process.env.NODE_ENV === 'production') {
+  const options = {
+    maxOldSpaceSize: 460,
+    optimization: {
+      minimize: true
+    }
+  };
+  require('v8').setFlagsFromString('--max-old-space-size=460');
+}
+
+
 require('dotenv').config(); // Load environment variables from .env file
 
 const express = require("express");
@@ -12,6 +24,9 @@ const jwt = require("jsonwebtoken");
 require("./src/db");
 const authRoutes = require("./src/routes/auth");
 const reservationRoutes = require("./src/routes/reservations");
+
+
+
 const Reservation = require("./src/models/Reservation");
 const User = require("./src/models/User");
 const bcrypt = require("bcrypt");

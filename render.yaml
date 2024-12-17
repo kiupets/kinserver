@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: hotel-ai
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+      - key: NODE_ENV
+        value: production
