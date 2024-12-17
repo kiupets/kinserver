@@ -1,52 +1,87 @@
-// src/agents/TensorFlowAgent.js
-let tf;
+const tf = require('@tensorflow/tfjs');
 
-// Dynamic import based on environment
-if (process.env.NODE_ENV === 'production') {
-    tf = require('@tensorflow/tfjs');
-    // Load WASM backend for production
-    require('@tensorflow/tfjs-backend-wasm');
-} else {
-    tf = require('@tensorflow/tfjs-node');
+// Dynamic import of backends
+let tfnode;
+try {
+    if (process.env.NODE_ENV !== 'production') {
+        tfnode = require('@tensorflow/tfjs-node');
+    } else {
+        require('@tensorflow/tfjs-backend-wasm');
+    }
+} catch (error) {
+    console.log('Using default backend');
 }
-
-const mongoose = require('mongoose');
-const Reservation = require('../models/Reservation');
 
 class TensorFlowAgent {
     constructor() {
         this.model = null;
         this.initialized = false;
-        this.backend = process.env.NODE_ENV === 'production' ? 'wasm' : 'node';
     }
 
     async initialize() {
         try {
-            // Set backend based on environment
+            // Set appropriate backend
             if (process.env.NODE_ENV === 'production') {
                 await tf.setBackend('wasm');
+            } else if (tfnode) {
+                await tf.setBackend('tensorflow');
             }
 
-            // Create and compile model
-            this.model = tf.sequential({
-                layers: [
-                    tf.layers.dense({ inputShape: [7], units: 64, activation: 'relu' }),
-                    tf.layers.dense({ units: 32, activation: 'relu' }),
-                    tf.layers.dense({ units: 1 })
-                ]
-            });
+            console.log('Using backend:', tf.getBackend());
 
-            this.model.compile({
-                optimizer: 'adam',
-                loss: 'meanSquaredError'
-            });
+            // Create the model
+            this.model = tf.sequential();
 
-            this.initialized = true;
-            console.log(`AI Model initialized with ${this.backend} backend`);
+            // Add layers with error handling
+            try {
+                this.model.add(tf.layers.dense({
+                    units: 64,
+                    activation: 'relu',
+                    inputShape: [7]
+                }));
+
+                this.model.add(tf.layers.dense({
+                    units: 32,
+                    activation: 'relu'
+                }));
+
+                this.model.add(tf.layers.dense({
+                    units: 1
+                }));
+
+                // Compile the model
+                this.model.compile({
+                    optimizer: 'adam',
+                    loss: 'meanSquaredError'
+                });
+
+                this.initialized = true;
+                console.log('AI Model initialized successfully');
+            } catch (layerError) {
+                console.error('Error adding layers:', layerError);
+                throw layerError;
+            }
         } catch (error) {
-            console.error('Error initializing model:', error);
-            throw error;
+            console.error('Error in initialization:', error);
+            // Fallback to simpler model if initialization fails
+            await this.initializeFallbackModel();
         }
+    }
+
+    async initializeFallbackModel() {
+        console.log('Initializing fallback model');
+        this.model = tf.sequential({
+            layers: [
+                tf.layers.dense({ inputShape: [7], units: 1 })
+            ]
+        });
+
+        this.model.compile({
+            optimizer: 'sgd',
+            loss: 'meanSquaredError'
+        });
+
+        this.initialized = true;
     }
 
     async analyzeReservation(reservation) {
