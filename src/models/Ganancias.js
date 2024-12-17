@@ -6,6 +6,15 @@ const gananciasSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
+    // Nuevos campos para el mes y año
+    month: {
+        type: String,
+        required: true
+    },
+    year: {
+        type: Number,
+        required: true
+    },
     ingresos: [{
         subcategoria: String,
         monto: Number
@@ -13,7 +22,7 @@ const gananciasSchema = new mongoose.Schema({
     gastosOrdinarios: [{
         tipo: {
             type: String,
-            enum: ['SERVICIOS', 'SUELDOS', 'PRESENTISMO', 'PREMIOS']
+            enum: ['SERVICIOS', 'SUELDOS', 'PRESENTISMO', 'PREMIOS', 'INSUMOS DESAYUNO', 'INSUMOS LIMPIEZA']
         },
         concepto: String,
         monto: Number
@@ -26,6 +35,10 @@ const gananciasSchema = new mongoose.Schema({
             enum: ['Equipamiento', 'Habitaciones', 'Mantenimiento', 'Financiamiento', 'Insumos']
         }
     }],
+    occupancyRate: {
+        type: Number,
+        default: 0
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -35,4 +48,4 @@ const gananciasSchema = new mongoose.Schema({
     timestamps: true
 });
 
-module.exports = mongoose.model('Ganancias', gananciasSchema);  
+module.exports = mongoose.model('Ganancias', gananciasSchema);

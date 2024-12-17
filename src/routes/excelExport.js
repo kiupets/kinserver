@@ -8,6 +8,7 @@ const Reservation = require('../models/Reservation');
 router.get('/export-detailed', async (req, res) => {
     try {
         const { userId, startDate, endDate } = req.query;
+        const TOTAL_ROOMS = 15; // Número fijo de habitaciones
 
         const monthStart = moment(startDate).startOf('month');
         const monthEnd = moment(endDate).endOf('month');
@@ -68,6 +69,9 @@ router.get('/export-detailed', async (req, res) => {
             };
         });
 
+        const daysInMonth = monthEnd.diff(monthStart, 'days') + 1;
+        const totalPossibleRoomDays = TOTAL_ROOMS * daysInMonth;
+
         let statsData = {
             totalReservations: 0,
             totalNights: 0,
@@ -95,7 +99,7 @@ router.get('/export-detailed', async (req, res) => {
             const effectiveStart = moment.max(startDate, monthStart);
             const effectiveEnd = moment.min(endDate, monthEnd);
             const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
-            const totalNights = endDate.diff(startDate, 'days');
+            const totalNights = reservation.nights || 0; // Usar nights directamente de la reservación
             const crossesMonths = startDate.month() !== endDate.month();
 
             if (crossesMonths) {
@@ -103,6 +107,9 @@ router.get('/export-detailed', async (req, res) => {
             }
 
             if (nightsInMonth > 0) {
+                // Actualizar noches totales
+                statsData.totalNights += totalNights;
+
                 const proportionFactor = nightsInMonth / totalNights;
                 const payments = reservation.payments || [];
                 const totals = {
@@ -115,7 +122,7 @@ router.get('/export-detailed', async (req, res) => {
                 const recepcionistas = new Set();
                 const metodosPago = new Set();
 
-                // Procesar pagos y calcular totales
+                // Procesar pagos
                 payments.forEach(payment => {
                     if (payment.method && payment.amount) {
                         const proportionalAmount = payment.amount * proportionFactor;
@@ -128,14 +135,11 @@ router.get('/export-detailed', async (req, res) => {
                     }
                 });
 
-                // Obtener monto pendiente
                 const montoPendiente = reservation.montoPendiente || 0;
-
                 const pagoPorNoche = nightsInMonth > 0 ? totals.total / nightsInMonth : 0;
 
                 // Actualizar estadísticas
                 statsData.totalReservations++;
-                statsData.totalNights += nightsInMonth;
                 statsData.totalGuests += reservation.numberOfGuests || 0;
                 statsData.totalNightlyRates += pagoPorNoche;
                 statsData.paymentMethodStats.pendiente += montoPendiente;
@@ -262,44 +266,23 @@ router.get('/export-detailed', async (req, res) => {
             }
         });
 
-        // Calcular promedio de pago por noche
+        // Calcular promedio de pago por noche y porcentaje de ocupación
         statsData.avgNightlyRate = statsData.totalReservations > 0 ?
             statsData.totalNightlyRates / statsData.totalReservations : 0;
 
-        // Agregar fila de totales
-        const totalsRow = worksheet.addRow({
-            nombre: 'TOTALES',
-            nochesEnMes: statsData.totalNights,
-            huespedes: statsData.totalGuests,
-            total: statsData.paymentMethodStats.total,
-            pagoPorNoche: statsData.avgNightlyRate,
-            efectivo: statsData.paymentMethodStats.efectivo,
-            tarjeta: statsData.paymentMethodStats.tarjeta,
-            transferencia: statsData.paymentMethodStats.transferencia,
-            pendiente: statsData.paymentMethodStats.pendiente
-        });
+        const occupancyRate = (statsData.totalNights / totalPossibleRoomDays) * 100;
 
-        // Estilo para totales
-        totalsRow.font = { bold: true };
-        ['total', 'pagoPorNoche', 'efectivo', 'tarjeta', 'transferencia', 'pendiente'].forEach((col, index) => {
-            const cell = totalsRow.getCell(col);
-            cell.numFmt = '"$"#,##0.00';
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: {
-                    argb: ['FF4167B1', 'FF8E24AA', 'FF2E7D32', 'FF1976D2', 'FF6D4C41', 'FFE53935'][index]
-                }
-            };
-            cell.font = { bold: true, color: { argb: 'FFFFFF' } };
-        });
-
-        // Configurar hoja de estadísticas
+        // Configurar hoja de estadísticas con nuevas métricas de ocupación
         const stats = [
             ['Estadísticas Generales', ''],
             ['Total Reservaciones', statsData.totalReservations],
             ['Total Noches', statsData.totalNights],
             ['Total Huéspedes', statsData.totalGuests],
+            ['Número de Habitaciones', TOTAL_ROOMS],
+            ['Porcentaje de Ocupación', `${occupancyRate.toFixed(2)}%`],
+            ['Días en el Mes', daysInMonth],
+            ['Noches Totales Ocupadas', statsData.totalNights],
+            ['Noches Totales Disponibles', totalPossibleRoomDays],
             ['Reservas que Cruzan Meses', statsData.crossMonthReservations],
             ['Reservas con Pagos Mixtos', statsData.paymentMethodStats.mixedPayments],
             ['Promedio Noches por Reserva', (statsData.totalNights / statsData.totalReservations).toFixed(2)],

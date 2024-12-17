@@ -26,6 +26,10 @@ const excelExportRoutes = require('./src/routes/excelExport');
 const gananciasSaveRouter = require('./src/routes/gananciasSave');
 const gananciasExportRouter = require('./src/routes/gananciasExport')
 
+const TensorFlowAgent = require('./src/agents/TensorFlowAgent');
+const tfAgent = new TensorFlowAgent();
+
+
 
 
 
@@ -363,6 +367,8 @@ app.get("/all", async (req, res) => {
 });
 
 // En index.js - Corregir create-reservation
+// En index.js
+
 app.post("/create-reservation", async (req, res) => {
   try {
     const { reservationData } = req.body;
@@ -371,6 +377,8 @@ app.post("/create-reservation", async (req, res) => {
     if (!reservationData) {
       return res.status(400).json({ message: "Reservation data is missing" });
     }
+
+    const aiAnalysis = await tfAgent.analyzeReservation(reservationData);
 
     // Procesar pagos y calcular totales
     const payments = reservationData.payments || [];
@@ -405,7 +413,8 @@ app.post("/create-reservation", async (req, res) => {
       montoPendiente: precioTotal - totalPaidSoFar,
       price: parseFloat(reservationData.price),
       precioTotal: precioTotal,
-      roomStatus: reservationData.roomStatus || 'disponible'
+      roomStatus: reservationData.roomStatus || 'disponible',
+
     };
 
     const reservations = Array.isArray(reservationData.room)
@@ -427,8 +436,10 @@ app.post("/create-reservation", async (req, res) => {
 
     res.status(200).json({
       message: "Reservations created successfully",
-      reservations: createdReservations
+      reservations: createdReservations,
+      aiInsights: aiAnalysis
     });
+
   } catch (error) {
     console.error('Error creating reservation:', error);
     res.status(500).json({ error: error.message });

@@ -19,7 +19,7 @@ const paymentSchema = new mongoose.Schema({
   },
   recepcionista: {
     type: String,
-    enum: ['gonzalo', 'matias', 'gabriela', 'daniela', 'priscila', 'maxi'],
+    enum: ['gonzalo', 'matias', 'gabriela', 'daniela', 'priscila', 'maxi', ''],
     // required: [true, 'El recepcionista es requerido']
   },
   montoPendiente: {
