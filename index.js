@@ -310,7 +310,45 @@ app.get("/check-session", (req, res) => {
   }
 });
 // app.use('/api/financial', financialRoutes);
+app.put("/update-styles", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const { styles } = req.body;
 
+    if (!userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para actualizar los estilos" });
+    }
+
+    if (!styles || !styles.statusStyles) {
+      return res.status(400).json({ message: "Se requieren los estilos con el formato correcto" });
+    }
+
+    // Actualizar los estilos en la base de datos o en memoria
+    await Reservation.updateMany(
+      { user: userId },
+      { $set: { styles: styles } }
+    );
+
+    // Emitir evento de socket para notificar a los clientes conectados
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      userSocket.socketId.forEach(socketId => {
+        io.to(socketId).emit("stylesUpdated", { styles });
+      });
+    });
+
+    res.status(200).json({
+      message: "Estilos actualizados exitosamente",
+      success: true
+    });
+  } catch (error) {
+    console.error('Error en la actualización de estilos:', error);
+    res.status(500).json({
+      message: "Error al actualizar los estilos",
+      error: error.message
+    });
+  }
+});
 app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -748,6 +786,11 @@ app.get("/search-reservations", async (req, res) => {
   }
 });
 
+// Route to update styles
+
+
+// Ruta para actualizar los estilos en la colección Reservation
+
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
 
@@ -765,5 +808,45 @@ server.listen(PORT, () => {
 app._router.stack.forEach(function (r) {
   if (r.route && r.route.path) {
     console.log(r.route.path)
+  }
+});
+
+app.put("/update-styles", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const { styles } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Debe iniciar sesión para actualizar los estilos" });
+    }
+
+    if (!styles || !styles.statusStyles) {
+      return res.status(400).json({ message: "Se requieren los estilos con el formato correcto" });
+    }
+
+    // Actualizar los estilos en la base de datos o en memoria
+    await Reservation.updateMany(
+      { user: userId },
+      { $set: { styles: styles } }
+    );
+
+    // Emitir evento de socket para notificar a los clientes conectados
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      userSocket.socketId.forEach(socketId => {
+        io.to(socketId).emit("stylesUpdated", { styles });
+      });
+    });
+
+    res.status(200).json({
+      message: "Estilos actualizados exitosamente",
+      success: true
+    });
+  } catch (error) {
+    console.error('Error en la actualización de estilos:', error);
+    res.status(500).json({
+      message: "Error al actualizar los estilos",
+      error: error.message
+    });
   }
 });
