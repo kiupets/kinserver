@@ -11,7 +11,7 @@ if (process.env.NODE_ENV === 'production') {
 
 
 require('dotenv').config(); // Load environment variables from .env file
-const { createProxyMiddleware } = require('http-proxy-middleware');
+// const { createProxyMiddleware } = require('http-proxy-middleware');
 const express = require("express");
 const { Server } = require("socket.io");
 const session = require("express-session");
