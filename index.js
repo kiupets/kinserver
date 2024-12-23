@@ -11,7 +11,7 @@ if (process.env.NODE_ENV === 'production') {
 
 
 require('dotenv').config(); // Load environment variables from .env file
-
+const { createProxyMiddleware } = require('http-proxy-middleware');
 const express = require("express");
 const { Server } = require("socket.io");
 const session = require("express-session");
@@ -71,6 +71,25 @@ const tfAgent = new TensorFlowAgent();
 //     credentials: true,
 //   },
 // });
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+// Proxy setup
+app.use('/api/mercadolibre', createProxyMiddleware({
+  target: 'https://api.mercadolibre.com',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/api/mercadolibre': '', // Remove the /api/mercadolibre prefix when forwarding the request
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    // Add any custom headers here if needed
+    proxyReq.setHeader('Authorization', `Bearer APP_USR-7120622971726500-122221-f622cd9e3faa17193f6154365be8d3a1-225884424`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    // Modify the response headers to include CORS headers
+    proxyRes.headers['Access-Control-Allow-Origin'] = 'https://hotelexpress.onrender.com';
+    proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
+  }
+}));
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === "production"
