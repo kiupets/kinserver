@@ -1054,26 +1054,26 @@ store.on("error", function (error) {
 //   rolling: true     // Renueva el tiempo de expiración en cada request
 // };
 
-const sessionConfig = {
-  secret: SESSION_SECRET,
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 día
-    httpOnly: true,
-    // secure: true, // Ensure this is set to true in production
-    // sameSite: 'lax' // or 'strict' depending on your use case
-  },
-  name: 'sessionId',
-  store: store,
-  resave: false,
-  saveUninitialized: false,
-  rolling: true
-};
+// const sessionConfig = {
+//   secret: SESSION_SECRET,
+//   cookie: {
+//     maxAge: 1000 * 60 * 60 * 24, // 1 día
+//     httpOnly: true,
+//     // secure: true, // Ensure this is set to true in production
+//     // sameSite: 'lax' // or 'strict' depending on your use case
+//   },
+//   name: 'sessionId',
+//   store: store,
+//   resave: false,
+//   saveUninitialized: false,
+//   rolling: true
+// };
 
-store.on('error', (error) => {
-  console.error('Session store error:', error);
-});
+// store.on('error', (error) => {
+//   console.error('Session store error:', error);
+// });
 
-app.use(session(sessionConfig));
+// app.use(session(sessionConfig));
 // Middleware para debug
 app.use((req, res, next) => {
   console.log('Session debug:', {
