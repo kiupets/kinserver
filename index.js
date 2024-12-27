@@ -466,6 +466,135 @@ app.use((req, res, next) => {
   next();
 });
 
+app.delete("/delete-reservation/:id", async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const userId = req.query.userId;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuario no autorizado" });
+    }
+
+    // Verificar que la reserva existe y pertenece al usuario
+    const reservation = await Reservation.findOne({
+      _id: reservationId,
+      user: userId
+    });
+
+    if (!reservation) {
+      return res.status(404).json({ message: "Reserva no encontrada" });
+    }
+
+    // Eliminar la reserva
+    await Reservation.findByIdAndDelete(reservationId);
+
+    // Notificar a los clientes conectados
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      userSocket.socketId.forEach(socketId => {
+        io.to(socketId).emit("reservationDeleted", { reservationId });
+      });
+    });
+
+    // Actualizar totales de pagos
+    await updateAndEmitPaymentMethodTotals(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Reserva eliminada exitosamente"
+    });
+  } catch (error) {
+    console.error("Error al eliminar la reserva:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al eliminar la reserva",
+      error: error.message
+    });
+  }
+});
+
+app.put("/update-reservation/:id", async (req, res) => {
+  try {
+    const reservationId = req.params.id;
+    const userId = req.query.userId;
+    const { reservationData } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuario no autorizado" });
+    }
+
+    // Verificar que la reserva existe y pertenece al usuario
+    const existingReservation = await Reservation.findOne({
+      _id: reservationId,
+      user: userId
+    });
+
+    if (!existingReservation) {
+      return res.status(404).json({ message: "Reserva no encontrada" });
+    }
+
+    // Procesar pagos
+    const payments = reservationData.payments || [];
+    const precioTotal = parseFloat(reservationData.precioTotal);
+    let totalPaidSoFar = 0;
+
+    const processedPayments = payments.map(payment => {
+      const amount = parseFloat(payment.amount);
+      totalPaidSoFar += amount;
+      return {
+        ...payment,
+        amount,
+        montoPendiente: precioTotal - totalPaidSoFar,
+        recepcionista: payment.recepcionista
+      };
+    });
+
+    if (totalPaidSoFar > precioTotal) {
+      return res.status(400).json({
+        message: "El total de pagos no puede exceder el precio total"
+      });
+    }
+
+    // Actualizar la reserva
+    const updatedReservation = await Reservation.findByIdAndUpdate(
+      reservationId,
+      {
+        ...reservationData,
+        payments: processedPayments,
+        totalPaid: totalPaidSoFar,
+        montoPendiente: precioTotal - totalPaidSoFar,
+        price: parseFloat(reservationData.price),
+        precioTotal: precioTotal
+      },
+      { new: true }
+    );
+
+    // Notificar a los clientes conectados
+    const userSockets = connectedUsers.filter((user) => user.user === userId);
+    userSockets.forEach((userSocket) => {
+      userSocket.socketId.forEach(socketId => {
+        io.to(socketId).emit("reservationUpdated", { updatedReservation });
+      });
+    });
+
+    // Actualizar totales de pagos
+    await updateAndEmitPaymentMethodTotals(userId);
+
+    res.status(200).json({
+      success: true,
+      message: "Reserva actualizada exitosamente",
+      reservation: updatedReservation
+    });
+  } catch (error) {
+    console.error("Error al actualizar la reserva:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al actualizar la reserva",
+      error: error.message
+    });
+  }
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
