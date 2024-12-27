@@ -104,7 +104,8 @@ app.use(session({
   store: store,
   resave: true,
   saveUninitialized: true,
-  rolling: true
+  rolling: true,
+  proxy: process.env.NODE_ENV === 'production'
 }));
 
 // Headers adicionales
@@ -212,19 +213,32 @@ app.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Credenciales inválidas" });
     }
 
+    // Set session data
     req.session.userId = user._id.toString();
-    console.log('Session after setting userId:', req.session);
+    req.session.isAuthenticated = true;
 
-    req.session.save((err) => {
-      if (err) {
-        console.error('Error saving session:', err);
-        return res.status(500).json({ message: "Error saving session" });
-      }
-      res.status(200).json({
-        success: true,
-        message: "Inicio de sesión exitoso",
-        userId: user._id
+    // Save session explicitly and wait for it
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) {
+          console.error('Error saving session:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
       });
+    });
+
+    console.log('Session after saving:', {
+      sessionID: req.sessionID,
+      userId: req.session.userId,
+      isAuthenticated: req.session.isAuthenticated
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Inicio de sesión exitoso",
+      userId: user._id
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -438,6 +452,18 @@ app.put("/update-styles", async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Add session check middleware
+app.use((req, res, next) => {
+  console.log('Session debug:', {
+    url: req.url,
+    method: req.method,
+    sessionID: req.sessionID,
+    userId: req.session?.userId,
+    isAuthenticated: req.session?.isAuthenticated
+  });
+  next();
 });
 
 // Start server
