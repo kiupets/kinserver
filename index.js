@@ -375,6 +375,30 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
+// Default styles route
+app.get("/default-styles", (req, res) => {
+  const defaultStyles = {
+    statusStyles: {
+      roomStatus: {
+        disponible: { backgroundColor: '#86EFAC', borderColor: '#86EFAC' },
+        ocupada: { backgroundColor: '#FDA4AF', borderColor: '#FDA4AF' },
+        limpieza: { backgroundColor: '#FDE047', borderColor: '#FDE047' },
+        mantenimiento: { backgroundColor: '#94A3B8', borderColor: '#94A3B8' },
+        bloqueada: { backgroundColor: '#475569', borderColor: '#475569' },
+        checkout_pendiente: { backgroundColor: '#FDBA74', borderColor: '#FDBA74' },
+        reservada: { backgroundColor: '#7DD3FC', borderColor: '#7DD3FC' }
+      },
+      billingStatus: {
+        pendiente: { backgroundColor: '#fa0101' },
+        efectivo: { backgroundColor: '#86EFAC' },
+        tarjeta: { backgroundColor: '#93C5FD' },
+        transferencia: { backgroundColor: '#FDE047' }
+      }
+    }
+  };
+  res.json(defaultStyles);
+});
+
 // Start server
 server.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
