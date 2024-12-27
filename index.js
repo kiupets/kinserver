@@ -117,111 +117,57 @@ mongoose.connect(MONGODB_URI, {
   useUnifiedTopology: true,
 });
 
-// Session store configuration
-
-
-
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-
-
-
-
-// const corsOptions = {
-//   origin: process.env.NODE_ENV === "production"
-//     ? "https://hotelexpress.onrender.com"
-//     : "http://localhost:3000",
-//   methods: ["GET", "POST", "PUT", "DELETE"],
-//   credentials: true,
-// };
-// app.use(cors(corsOptions));
-// Store configuration
-
-// CORS configuration
+// CORS Configuration
 const corsOptions = {
   origin: process.env.NODE_ENV === "production"
     ? "https://hotelexpress.onrender.com"
     : "http://localhost:3000",
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  exposedHeaders: ['set-cookie']
 };
-app.use(cors(corsOptions));
+
+// Store Configuration
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'sessions',
   expires: 1000 * 60 * 60 * 24, // 1 día
   autoRemove: 'native'
 });
+
+store.on('error', (error) => {
+  console.error('Session store error:', error);
+});
+
+// Middleware order
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
 app.use(session({
-  // secret: process.env.SESSION_SECRET,
-  // cookie: {
-  //   maxAge: 1000 * 60 * 60 * 24, // 1 day
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: process.env.NODE_ENV === "production" ? 'none' : 'lax',
-  // },
   secret: process.env.SESSION_SECRET,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-    secure: true,
-    sameSite: 'none',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     httpOnly: true
   },
   store: store,
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
+  rolling: true
 }));
+
 // Headers adicionales para asegurar el funcionamiento en móviles
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
-store.on("error", function (error) {
-  console.log("Session store error:", error);
-});
-// Session middleware
-// En index.js, modifica la configuración de la sesión:
-// Configuración de sesión
-// const sessionConfig = {
-//   secret: SESSION_SECRET,
-//   cookie: {
-//     maxAge: 1000 * 60 * 60 * 24, // 1 día
-//     httpOnly: true,
-//     secure: false, // Cambiar a true si usas HTTPS
-//     sameSite: 'lax'
-//   },
-//   name: 'sessionId', // Nombre personalizado para la cookie
-//   store: store,
-//   resave: true,     // Cambiado a true para asegurar que la sesión se guarde
-//   saveUninitialized: false,
-//   rolling: true     // Renueva el tiempo de expiración en cada request
-// };
 
-const sessionConfig = {
-  secret: SESSION_SECRET,
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24, // 1 día
-    httpOnly: true,
-    // secure: true, // Ensure this is set to true in production
-    // sameSite: 'lax' // or 'strict' depending on your use case
-  },
-  name: 'sessionId',
-  store: store,
-  resave: false,
-  saveUninitialized: false,
-  rolling: true
-};
-
-store.on('error', (error) => {
-  console.error('Session store error:', error);
-});
-
-app.use(session(sessionConfig));
-// Middleware para debug
+// Debug middleware
 app.use((req, res, next) => {
   console.log('Session debug:', {
     sessionID: req.sessionID,
@@ -230,16 +176,6 @@ app.use((req, res, next) => {
   });
   next();
 });
-// Headers adicionales para asegurar el funcionamiento en móviles
-// app.use((req, res, next) => {
-//   res.header('Access-Control-Allow-Credentials', 'true');
-//   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-//   next();
-// });
-// app.use((req, res, next) => {
-//   console.log(`${req.method} ${req.path} - ${new Date().toISOString()}`);
-//   next();
-// });
 
 // Rutas
 // app.use('/excel', require('./src/routes/excelExport'));
@@ -270,9 +206,7 @@ app.use('/excel', gananciasExportRouter);
 
 
 
-// Socket.IO setup
-const connectedUsers = [];
-
+// Socket.IO Configuration
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
   console.log(`User connected with userId: ${userId}`);
