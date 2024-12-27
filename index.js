@@ -492,7 +492,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       userSocket.socketId.forEach(socketId => {
-        io.to(socketId).emit("reservationDeleted", { reservationId });
+        io.to(socketId).emit("reservationDeleted", { reservationId: reservationId });
       });
     });
 
@@ -501,7 +501,8 @@ app.delete("/delete-reservation/:id", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Reserva eliminada exitosamente"
+      message: "Reserva eliminada exitosamente",
+      reservationId: reservationId
     });
   } catch (error) {
     console.error("Error al eliminar la reserva:", error);
@@ -516,8 +517,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
 app.put("/update-reservation/:id", async (req, res) => {
   try {
     const reservationId = req.params.id;
-    const userId = req.query.userId;
-    const { reservationData } = req.body;
+    const userId = req.query.userId || req.body.userId;
 
     if (!userId) {
       return res.status(401).json({ message: "Usuario no autorizado" });
@@ -533,39 +533,39 @@ app.put("/update-reservation/:id", async (req, res) => {
       return res.status(404).json({ message: "Reserva no encontrada" });
     }
 
-    // Procesar pagos
-    const payments = reservationData.payments || [];
-    const precioTotal = parseFloat(reservationData.precioTotal);
-    let totalPaidSoFar = 0;
+    // Normalizar los datos de la actualización
+    const {
+      dragging = false,
+      rooms,
+      newRooms,
+      room,
+      start,
+      end,
+      ...otherData
+    } = req.body;
 
-    const processedPayments = payments.map(payment => {
-      const amount = parseFloat(payment.amount);
-      totalPaidSoFar += amount;
-      return {
-        ...payment,
-        amount,
-        montoPendiente: precioTotal - totalPaidSoFar,
-        recepcionista: payment.recepcionista
-      };
-    });
-
-    if (totalPaidSoFar > precioTotal) {
-      return res.status(400).json({
-        message: "El total de pagos no puede exceder el precio total"
-      });
+    // Determinar las habitaciones finales
+    let finalRooms;
+    if (dragging) {
+      // Para drag & drop, usar el room directamente
+      finalRooms = room;
+    } else {
+      // Para edición de formulario, combinar rooms existentes y nuevos
+      finalRooms = newRooms ? [...new Set([...(Array.isArray(rooms) ? rooms : [rooms]), ...newRooms])] : rooms;
     }
 
     // Actualizar la reserva
+    const updateData = {
+      ...otherData,
+      dragging,
+      room: finalRooms,
+      start: new Date(start),
+      end: new Date(end)
+    };
+
     const updatedReservation = await Reservation.findByIdAndUpdate(
       reservationId,
-      {
-        ...reservationData,
-        payments: processedPayments,
-        totalPaid: totalPaidSoFar,
-        montoPendiente: precioTotal - totalPaidSoFar,
-        price: parseFloat(reservationData.price),
-        precioTotal: precioTotal
-      },
+      updateData,
       { new: true }
     );
 
@@ -573,12 +573,9 @@ app.put("/update-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       userSocket.socketId.forEach(socketId => {
-        io.to(socketId).emit("reservationUpdated", { updatedReservation });
+        io.to(socketId).emit("updateReservation", [updatedReservation]);
       });
     });
-
-    // Actualizar totales de pagos
-    await updateAndEmitPaymentMethodTotals(userId);
 
     res.status(200).json({
       success: true,
