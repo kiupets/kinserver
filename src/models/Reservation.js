@@ -6,11 +6,11 @@ const paymentSchema = new mongoose.Schema({
   method: {
     type: String,
     enum: ['efectivo', 'tarjeta', 'transferencia'],
-    // required: true
+    required: true
   },
   amount: {
     type: Number,
-    // required: true,
+    required: true,
     min: 0
   },
   date: {
@@ -20,65 +20,50 @@ const paymentSchema = new mongoose.Schema({
   recepcionista: {
     type: String,
     enum: ['gonzalo', 'matias', 'gabriela', 'daniela', 'priscila', 'maxi', ''],
-    // required: [true, 'El recepcionista es requerido']
+    required: [true, 'El recepcionista es requerido']
   },
   montoPendiente: {
     type: Number,
-    // required: true
+    required: true
   }
 });
-paymentSchema.pre('save', function (next) {
-  if (!this.parent()) {
-    return next();
-  }
 
-  // Obtener el documento padre (la reservación)
-  const reservation = this.parent();
-  const totalPaid = reservation.payments.reduce((sum, payment) => {
-    return sum + (payment === this ? 0 : payment.amount);
-  }, 0) + this.amount;
-
-  this.montoPendiente = Math.max(0, reservation.precioTotal - totalPaid);
-  next();
-});
 const reservationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    // required: [true, 'El usuario es requerido']
+    required: [true, 'El usuario es requerido']
   },
   name: {
     type: String,
-    // required: [true, 'El nombre es requerido']
+    required: [true, 'El nombre es requerido']
   },
   email: {
     type: String,
-    // Validación básica de email
-    // match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Por favor ingrese un email válido']
   },
   phone: {
     type: Schema.Types.Mixed
   },
   room: {
     type: [String],
-    // required: [true, 'La habitación es requerida']
+    required: [true, 'La habitación es requerida']
   },
   start: {
     type: Date,
-    // required: [true, 'La fecha de inicio es requerida']
+    required: [true, 'La fecha de inicio es requerida']
   },
   end: {
     type: Date,
-    // required: [true, 'La fecha de fin es requerida']
+    required: [true, 'La fecha de fin es requerida']
   },
   price: {
     type: Number,
-    // required: [true, 'El precio es requerido'],
+    required: [true, 'El precio es requerido'],
     min: [0, 'El precio no puede ser negativo']
   },
   precioTotal: {
     type: Number,
-    // required: [true, 'El precio total es requerido'],
+    required: [true, 'El precio total es requerido'],
     min: [0, 'El precio total no puede ser negativo']
   },
   nights: {
@@ -92,20 +77,16 @@ const reservationSchema = new mongoose.Schema({
     type: String,
     maxlength: [500, 'Los comentarios no pueden exceder los 500 caracteres']
   },
-  adelanto: {
-    type: Number,
-    default: 0,
-    min: [0, 'El adelanto no puede ser negativo']
-  },
   montoPendiente: {
     type: Number,
-    default: 0
+    default: function () {
+      return this.precioTotal || 0;
+    }
   },
   isOverlapping: {
     type: Boolean,
     default: false
   },
-
   isBooking: {
     type: Boolean,
     default: false
@@ -115,13 +96,6 @@ const reservationSchema = new mongoose.Schema({
   },
   time: {
     type: String
-  },
-  paymentMethod: {
-    type: String,
-    enum: {
-      values: ["efectivo", "tarjeta", "transferencia"],
-      message: '{VALUE} no es un método de pago válido'
-    }
   },
   roomType: {
     type: String,
@@ -145,12 +119,6 @@ const reservationSchema = new mongoose.Schema({
   surname: {
     type: String
   },
-
-  billingStatus: {
-    type: String,
-    enum: ['pendiente', 'pagado_efectivo', 'pagado_tarjeta', 'pagado_transferencia'],
-    default: 'pendiente'
-  },
   roomStatus: {
     type: String,
     enum: [
@@ -172,12 +140,6 @@ const reservationSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  montoPendiente: {
-    type: Number,
-    default: function () {
-      return this.precioTotal || 0;
-    }
-  },
   styles: {
     type: Object,
     default: {
@@ -196,34 +158,26 @@ const reservationSchema = new mongoose.Schema({
           efectivo: { backgroundColor: '#86EFAC' },
           tarjeta: { backgroundColor: '#93C5FD' },
           transferencia: { backgroundColor: '#FDE047' }
+        },
+        pastReservations: {
+          color: '#E5E7EB',
+          enabled: false
         }
       }
     }
   }
 }, {
-  timestamps: true,
-
+  timestamps: true
 });
-// Agregar virtual para billingStatus
+
+// Middleware para calcular totalPaid y montoPendiente antes de guardar
 reservationSchema.pre('save', function (next) {
-  // Calcular totales
   if (this.payments && Array.isArray(this.payments)) {
     this.totalPaid = this.payments.reduce((sum, payment) => sum + payment.amount, 0);
     this.montoPendiente = Math.max(0, this.precioTotal - this.totalPaid);
-
-    // Actualizar billingStatus basado en los pagos
-    if (this.payments.length === 0) {
-      this.billingStatus = 'pendiente';
-    } else if (this.totalPaid >= this.precioTotal) {
-      const lastPayment = this.payments[this.payments.length - 1];
-      this.billingStatus = `pagado_${lastPayment.method}`;
-    } else {
-      this.billingStatus = 'pendiente';
-    }
   } else {
     this.totalPaid = 0;
     this.montoPendiente = this.precioTotal;
-    this.billingStatus = 'pendiente';
   }
   next();
 });
