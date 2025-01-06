@@ -92,20 +92,18 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session configuration
+// Session middleware configuration
 app.use(session({
-  secret: process.env.SESSION_SECRET,
-  cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    httpOnly: true
-  },
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
   store: store,
-  resave: true,
-  saveUninitialized: true,
-  rolling: true,
-  proxy: process.env.NODE_ENV === 'production'
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24 // 24 hours
+  },
+  name: 'billing.sid'
 }));
 
 // Headers adicionales
@@ -590,6 +588,13 @@ app.put("/update-reservation/:id", async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Logging middleware
+app.use((req, res, next) => {
+  console.log('Session ID:', req.sessionID);
+  console.log('Session:', req.session);
+  next();
 });
 
 // Start server
