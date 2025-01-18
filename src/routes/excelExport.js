@@ -94,22 +94,23 @@ router.get('/export-detailed', async (req, res) => {
 
         // Procesar reservaciones
         reservations.forEach(reservation => {
-            const startDate = moment(reservation.start);
-            const endDate = moment(reservation.end);
+            const startDate = moment(reservation.start).add(3, 'hours');
+            const endDate = moment(reservation.end).add(3, 'hours');
+
+            // Calcular días efectivos en el mes actual
             const effectiveStart = moment.max(startDate, monthStart);
             const effectiveEnd = moment.min(endDate, monthEnd);
             const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
-            const totalNights = reservation.nights || 0; // Usar nights directamente de la reservación
-            const crossesMonths = startDate.month() !== endDate.month();
+            const totalNights = reservation.nights || 0;
+            const crossesMonths = startDate.format('YYYY-MM') !== endDate.format('YYYY-MM');
 
-            if (crossesMonths) {
-                statsData.crossMonthReservations++;
-            }
+            // Verificar si la reserva pertenece a este mes
+            const startsInThisMonth = startDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const endsInThisMonth = endDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const belongsToThisMonth = startsInThisMonth || endsInThisMonth;
 
-            if (nightsInMonth > 0) {
-                // Actualizar noches totales
-                statsData.totalNights += totalNights;
-
+            if (belongsToThisMonth) {
+                // Calcular la proporción de noches en este mes
                 const proportionFactor = nightsInMonth / totalNights;
                 const payments = reservation.payments || [];
                 const totals = {
@@ -122,9 +123,12 @@ router.get('/export-detailed', async (req, res) => {
                 const recepcionistas = new Set();
                 const metodosPago = new Set();
 
-                // Procesar pagos
-                payments.forEach(payment => {
+                // Procesar pagos proporcionalmente
+                payments.forEach((payment, index) => {
                     if (payment.method && payment.amount) {
+                        const paymentDate = moment(payment.date);
+
+                        // Distribuir el pago proporcionalmente según las noches en este mes
                         const proportionalAmount = payment.amount * proportionFactor;
                         totals[payment.method] += proportionalAmount;
                         totals.total += proportionalAmount;
@@ -135,13 +139,16 @@ router.get('/export-detailed', async (req, res) => {
                     }
                 });
 
-                const montoPendiente = reservation.montoPendiente || 0;
-                const pagoPorNoche = nightsInMonth > 0 ? totals.total / nightsInMonth : 0;
+                // El monto pendiente se mantiene separado y no se suma al total
+                let montoPendiente = 0;
+                if (startDate.isBetween(monthStart, monthEnd, 'month', '[]')) {
+                    montoPendiente = (reservation.montoPendiente || 0) * proportionFactor;
+                }
 
                 // Actualizar estadísticas
                 statsData.totalReservations++;
                 statsData.totalGuests += reservation.numberOfGuests || 0;
-                statsData.totalNightlyRates += pagoPorNoche;
+                statsData.totalNightlyRates += totals.total / totalNights;
                 statsData.paymentMethodStats.pendiente += montoPendiente;
 
                 if (metodosPago.size > 1) {
@@ -196,7 +203,7 @@ router.get('/export-detailed', async (req, res) => {
                 });
                 statsData.paymentMethodStats.total += totals.total;
 
-                // Agregar fila al Excel
+                // Agregar fila al Excel usando las fechas ajustadas
                 const row = worksheet.addRow({
                     fecha: startDate.format('DD/MM/YYYY'),
                     nombre: reservation.name,
@@ -209,7 +216,7 @@ router.get('/export-detailed', async (req, res) => {
                     nochesEnMes: nightsInMonth,
                     huespedes: reservation.numberOfGuests,
                     total: totals.total,
-                    pagoPorNoche: pagoPorNoche,
+                    pagoPorNoche: totals.total / totalNights,
                     efectivo: totals.efectivo,
                     tarjeta: totals.tarjeta,
                     transferencia: totals.transferencia,
@@ -244,13 +251,20 @@ router.get('/export-detailed', async (req, res) => {
                             fgColor: { argb: 'FFFF9800' }
                         };
                     });
-                } else if (crossesMonths) {
+                }
+
+                // Verificar si la reserva cruza meses usando las fechas originales
+                const startYearMonth = startDate.format('YYYY-MM');
+                const endYearMonth = endDate.format('YYYY-MM');
+                if (startYearMonth !== endYearMonth) {
                     row.eachCell({ includeEmpty: true }, cell => {
-                        cell.fill = {
-                            type: 'pattern',
-                            pattern: 'solid',
-                            fgColor: { argb: 'FFFFE0B2' }
-                        };
+                        if (!cell.fill || cell.fill.fgColor.argb !== 'FFFF9800') {  // No sobrescribir si ya tiene color de pago mixto
+                            cell.fill = {
+                                type: 'pattern',
+                                pattern: 'solid',
+                                fgColor: { argb: 'FFFFE0B2' }
+                            };
+                        }
                     });
                 }
 
@@ -439,6 +453,114 @@ router.get('/export-detailed', async (req, res) => {
                     };
                 });
             });
+        });
+
+        // Agregar fila de totales
+        worksheet.addRow({}); // Espacio en blanco
+        const totalsRow = worksheet.addRow({
+            fecha: 'TOTALES',
+            nombre: '',
+            apellido: '',
+            habitacion: '',
+            tipo: '',
+            checkin: '',
+            checkout: '',
+            nochesTotales: statsData.totalNights,
+            nochesEnMes: statsData.totalNights,
+            huespedes: statsData.totalGuests,
+            total: statsData.paymentMethodStats.total + statsData.paymentMethodStats.pendiente,
+            pagoPorNoche: statsData.totalNights > 0 ? (statsData.paymentMethodStats.total + statsData.paymentMethodStats.pendiente) / statsData.totalNights : 0,
+            efectivo: statsData.paymentMethodStats.efectivo,
+            tarjeta: statsData.paymentMethodStats.tarjeta,
+            transferencia: statsData.paymentMethodStats.transferencia,
+            pendiente: statsData.paymentMethodStats.pendiente,
+            metodosPago: `${statsData.paymentMethodStats.mixedPayments} pagos mixtos`,
+            recepcionista: `${statsData.totalReservations} reservas`
+        });
+
+        // Estilo para la fila de totales
+        totalsRow.font = { bold: true, size: 12 };
+        totalsRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD1C4E9' }
+        };
+
+        // Aplicar formato de moneda a los totales
+        ['total', 'pagoPorNoche', 'efectivo', 'tarjeta', 'transferencia', 'pendiente'].forEach(col => {
+            const cell = totalsRow.getCell(col);
+            if (cell.value) {
+                cell.numFmt = '"$"#,##0.00';
+            }
+        });
+
+        // Agregar bordes a la fila de totales
+        totalsRow.eachCell(cell => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // Agregar resumen de estadísticas
+        worksheet.addRow({});
+        worksheet.addRow({});
+        const summaryHeaderRow = worksheet.addRow(['RESUMEN DE ESTADÍSTICAS']);
+        summaryHeaderRow.font = { bold: true, size: 12 };
+        summaryHeaderRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4167B1' }
+        };
+        summaryHeaderRow.getCell(1).font = { bold: true, color: { argb: 'FFFFFF' } };
+
+        // Agregar estadísticas generales
+        const summaryData = [
+            ['Total de Reservaciones', statsData.totalReservations],
+            ['Total de Noches', statsData.totalNights],
+            ['Total de Huéspedes', statsData.totalGuests],
+            ['Promedio de Noches por Reserva', statsData.totalReservations > 0 ? (statsData.totalNights / statsData.totalReservations).toFixed(2) : 0],
+            ['Promedio de Pago por Noche', statsData.totalNights > 0 ? (statsData.paymentMethodStats.total / statsData.totalNights).toFixed(2) : 0],
+            ['Reservaciones que Cruzan Meses', statsData.crossMonthReservations],
+            ['Pagos Mixtos', statsData.paymentMethodStats.mixedPayments],
+            ['Total en Efectivo', statsData.paymentMethodStats.efectivo],
+            ['Total en Tarjeta', statsData.paymentMethodStats.tarjeta],
+            ['Total en Transferencia', statsData.paymentMethodStats.transferencia],
+            ['Total de Pagos Realizados', statsData.paymentMethodStats.total],
+            ['Total Pendiente', statsData.paymentMethodStats.pendiente],
+            ['Total General (incluye pendientes)', statsData.paymentMethodStats.total + statsData.paymentMethodStats.pendiente]
+        ];
+
+        summaryData.forEach(([label, value]) => {
+            const row = worksheet.addRow([label, value]);
+            if (label.startsWith('Total')) {
+                const cell = row.getCell(2);
+                cell.numFmt = '"$"#,##0.00';
+            }
+            if (label === 'Total General') {
+                row.font = { bold: true };
+                row.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE8EAF6' }
+                };
+            }
+        });
+
+        // Ajustar el ancho de las columnas del resumen
+        worksheet.getColumn(1).width = 30;
+        worksheet.getColumn(2).width = 15;
+
+        // Agregar bordes a la sección de resumen
+        worksheet.lastRow.eachCell(cell => {
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
         });
 
         // Generar el buffer y enviar el archivo

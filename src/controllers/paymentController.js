@@ -74,10 +74,16 @@ function getDaysInMonth(startDate, endDate, month, year) {
     return Math.ceil((reservationEnd - reservationStart) / (1000 * 60 * 60 * 24));
 }
 
+const PaymentHistory = require('../models/PaymentHistory');
+
 const updateReservationPayments = async (req, res) => {
     try {
         const { id } = req.params;
-        const { payments, precioTotal } = req.body;
+        const { payments, precioTotal, performedBy } = req.body;
+
+        // Obtener estado actual antes de actualizar
+        const currentReservation = await Reservation.findById(id);
+        const previousPayments = currentReservation.payments;
 
         // Validar que el total de pagos no exceda el precio total
         const totalPayments = payments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -88,24 +94,66 @@ const updateReservationPayments = async (req, res) => {
             });
         }
 
-        const reservation = await Reservation.findById(id);
-        if (!reservation) {
-            return res.status(404).json({
-                success: false,
-                message: 'Reserva no encontrada'
-            });
-        }
+        // Registrar cambios en el historial
+        const changes = [];
 
-        // Actualizar los pagos y calcular totales
-        reservation.payments = payments;
-        reservation.totalPaid = totalPayments;
-        reservation.montoPendiente = precioTotal - totalPayments;
+        // Detectar pagos eliminados
+        previousPayments.forEach(prevPayment => {
+            if (!payments.find(p => p._id && p._id.toString() === prevPayment._id.toString())) {
+                changes.push({
+                    action: 'delete',
+                    previousState: prevPayment,
+                    newState: null
+                });
+            }
+        });
 
-        // Actualizar el estado de facturación basado en los pagos
+        // Detectar pagos nuevos o modificados
+        payments.forEach(payment => {
+            if (!payment._id) {
+                // Nuevo pago
+                changes.push({
+                    action: 'add',
+                    previousState: null,
+                    newState: payment
+                });
+            } else {
+                // Pago existente - verificar si fue modificado
+                const prevPayment = previousPayments.find(p => p._id.toString() === payment._id.toString());
+                if (prevPayment && (
+                    prevPayment.amount !== payment.amount ||
+                    prevPayment.method !== payment.method ||
+                    prevPayment.recepcionista !== payment.recepcionista
+                )) {
+                    changes.push({
+                        action: 'edit',
+                        previousState: prevPayment,
+                        newState: payment
+                    });
+                }
+            }
+        });
+
+        // Guardar cambios en el historial
+        await Promise.all(changes.map(change =>
+            PaymentHistory.create({
+                reservation: id,
+                action: change.action,
+                previousState: change.previousState,
+                newState: change.newState,
+                performedBy
+            })
+        ));
+
+        // Actualizar la reserva
+        currentReservation.payments = payments;
+        currentReservation.totalPaid = totalPayments;
+        currentReservation.montoPendiente = precioTotal - totalPayments;
+
+        // Actualizar estado de facturación
         if (totalPayments === 0) {
-            reservation.billingStatus = 'pendiente';
+            currentReservation.billingStatus = 'pendiente';
         } else if (totalPayments === precioTotal) {
-            // Determinar el método de pago predominante
             const methodCounts = payments.reduce((acc, payment) => {
                 acc[payment.method] = (acc[payment.method] || 0) + payment.amount;
                 return acc;
@@ -114,20 +162,42 @@ const updateReservationPayments = async (req, res) => {
             const predominantMethod = Object.entries(methodCounts)
                 .reduce((a, b) => a[1] > b[1] ? a : b)[0];
 
-            reservation.billingStatus = `pagado_${predominantMethod}`;
+            currentReservation.billingStatus = `pagado_${predominantMethod}`;
         } else {
-            reservation.billingStatus = 'pendiente';
+            currentReservation.billingStatus = 'pendiente';
         }
 
-        await reservation.save();
+        await currentReservation.save();
 
         res.json({
             success: true,
-            data: reservation
+            data: currentReservation
         });
 
     } catch (error) {
         console.error('Error updating reservation payments:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Agregar nuevo endpoint para obtener historial de pagos
+const getPaymentHistory = async (req, res) => {
+    try {
+        const { reservationId } = req.params;
+
+        const history = await PaymentHistory.find({ reservation: reservationId })
+            .sort({ timestamp: -1 });
+
+        res.json({
+            success: true,
+            data: history
+        });
+
+    } catch (error) {
+        console.error('Error fetching payment history:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -155,5 +225,6 @@ exports.getYearlySummary = async (req, res) => {
 module.exports = {
     calculateMonthlyTotals,
     updateReservationPayments,
-    getYearlySummary
+    getYearlySummary,
+    getPaymentHistory
 }; 

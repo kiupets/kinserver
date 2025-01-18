@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const Ganancias = require('../models/Ganancias');
 const calcularOcupacionMensual = require('../utils/occupancyCalculator');
-const plantillaNoviembre = require('../templates/plantillaNoviembre.json');
+const moment = require('moment');
+const mongoose = require('mongoose');
+const Reservation = require('../models/Reservation');
 
 router.post('/save-ganancias/:userId', async (req, res) => {
     try {
@@ -30,6 +32,10 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                 message: "Mes y año son requeridos."
             });
         }
+
+        // Calcular fechas de inicio y fin del mes
+        const monthStart = moment([parseInt(year), parseInt(month) - 1, 1]).startOf('month');
+        const monthEnd = moment(monthStart).endOf('month');
 
         // Obtener el saldo final del mes anterior si no se proporciona cajaAnterior
         let valorCajaAnterior = cajaAnterior;
@@ -63,8 +69,10 @@ router.post('/save-ganancias/:userId', async (req, res) => {
         const gastosOrdinariosProcessed = gastosOrdinarios.map(gasto => {
             const gastoProcessed = {
                 ...gasto,
+                tipo: gasto.tipo === 'OTROS' ? 'MANTENIMIENTO' : gasto.tipo,
                 metodoPago: gasto.metodoPago || 'EFECTIVO',
-                valorHora: gasto.valorHora || 1500
+                valorHora: gasto.valorHora || 1500,
+                fechaCompra: gasto.fechaCompra ? new Date(gasto.fechaCompra) : new Date()
             };
 
             // Procesar campos específicos para horas extras
@@ -75,6 +83,16 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                 gastoProcessed.monto = (gasto.cantidadHoras || 0) * (gasto.valorHora || 1500);
             }
 
+            // Procesar campos específicos para aguinaldo
+            if (gasto.tipo === 'AGUINALDO') {
+                gastoProcessed.monto = parseFloat(gasto.monto) || 0;
+                gastoProcessed.periodo = gasto.periodo || '1';
+                // Validar que el periodo sea válido
+                if (!['1', '2'].includes(gastoProcessed.periodo)) {
+                    gastoProcessed.periodo = '1';
+                }
+            }
+
             // Procesar campos específicos para insumos
             if (gasto.tipo === 'INSUMOS_DESAYUNO' || gasto.tipo === 'INSUMOS_LIMPIEZA') {
                 gastoProcessed.monto = gasto.monto || 0;
@@ -83,15 +101,96 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             return gastoProcessed;
         });
 
-        // Calcular valores de caja
-        const ingresosEfectivo = ingresos
-            .find(i => i.subcategoria === 'Efectivo')?.monto || 0;
+        // Procesar gastos extraordinarios para asegurar fechaCompra
+        const gastosExtraordinariosProcessed = gastosExtraordinarios.map(gasto => ({
+            ...gasto,
+            fechaCompra: gasto.fechaCompra ? new Date(gasto.fechaCompra) : new Date(),
+            metodoPago: gasto.metodoPago || 'EFECTIVO'
+        }));
 
+        // Obtener las reservaciones del mes con sus pagos
+        const reservations = await Reservation.aggregate([
+            {
+                $match: {
+                    user: new mongoose.Types.ObjectId(userId),
+                    $or: [
+                        {
+                            end: { $gte: monthStart.toDate() },
+                            start: { $lte: monthEnd.toDate() }
+                        }
+                    ]
+                }
+            },
+            {
+                $lookup: {
+                    from: 'payments',
+                    localField: '_id',
+                    foreignField: 'reservation',
+                    as: 'payments'
+                }
+            }
+        ]);
+
+        // Calcular totales de pagos y pendientes
+        const totals = {
+            efectivo: 0,
+            tarjeta: 0,
+            transferencia: 0,
+            total: 0,
+            pendiente: 0
+        };
+
+        let gastosOrdinariosPendientes = 0;
+        let gastosExtraordinariosPendientes = gastosExtraordinarios
+            .reduce((sum, g) => sum + (g.montoPendiente || 0), 0);
+
+        // Procesar cada reservación
+        reservations.forEach(reservation => {
+            const startDate = moment(reservation.start).add(3, 'hours');
+            const endDate = moment(reservation.end).add(3, 'hours');
+
+            // Calcular días efectivos en el mes actual
+            const effectiveStart = moment.max(startDate, monthStart);
+            const effectiveEnd = moment.min(endDate, monthEnd);
+            const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
+            const totalNights = reservation.nights || 0;
+
+            // Verificar si la reserva pertenece a este mes
+            const startsInThisMonth = startDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const endsInThisMonth = endDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const belongsToThisMonth = startsInThisMonth || endsInThisMonth;
+
+            if (belongsToThisMonth) {
+                // Calcular la proporción de noches en este mes
+                const proportionFactor = nightsInMonth / totalNights;
+                const payments = reservation.payments || [];
+
+                // Procesar pagos proporcionalmente
+                payments.forEach(payment => {
+                    if (payment.method && payment.amount) {
+                        const proportionalAmount = payment.amount * proportionFactor;
+                        totals[payment.method] += proportionalAmount;
+                        totals.total += proportionalAmount;
+                    }
+                });
+
+                // Calcular monto pendiente proporcional
+                if (startsInThisMonth) {
+                    const montoPendiente = (reservation.montoPendiente || 0) * proportionFactor;
+                    totals.pendiente += montoPendiente;
+                    gastosOrdinariosPendientes += montoPendiente;
+                }
+            }
+        });
+
+        const totalPendientes = gastosOrdinariosPendientes + gastosExtraordinariosPendientes;
+
+        // Calcular valores de caja usando los totales calculados
         const gastosEfectivo = gastosOrdinariosProcessed
             .filter(g => g.metodoPago === 'EFECTIVO')
             .reduce((sum, g) => sum + (g.monto || 0), 0);
 
-        const saldoFinal = valorCajaAnterior + ingresosEfectivo - gastosEfectivo;
+        const saldoFinal = valorCajaAnterior + totals.efectivo - gastosEfectivo;
 
         const result = await Ganancias.findOneAndUpdate(
             {
@@ -101,9 +200,12 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             },
             {
                 $set: {
-                    ingresos: ingresos || [],
+                    ingresos: ingresos.map(ingreso => ({
+                        subcategoria: ingreso.subcategoria,
+                        monto: ingreso.monto || 0
+                    })),
                     gastosOrdinarios: gastosOrdinariosProcessed,
-                    gastosExtraordinarios: gastosExtraordinarios || [],
+                    gastosExtraordinarios: gastosExtraordinariosProcessed || [],
                     occupancyRate: estadisticasOcupacion.porcentajeOcupacion,
                     year: parseInt(year),
                     month,
@@ -111,9 +213,14 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                     cajaAnterior: valorCajaAnterior,
                     caja: {
                         cajaAnterior: valorCajaAnterior,
-                        ingresosEfectivo,
+                        ingresosEfectivo: ingresos.find(i => i.subcategoria === 'Efectivo')?.monto || 0,
                         gastosEfectivo,
-                        saldoFinal
+                        saldoFinal: valorCajaAnterior + (ingresos.find(i => i.subcategoria === 'Efectivo')?.monto || 0) - gastosEfectivo
+                    },
+                    pendientes: {
+                        gastosOrdinariosPendientes,
+                        gastosExtraordinariosPendientes,
+                        totalPendientes
                     }
                 }
             },
@@ -166,103 +273,170 @@ router.get('/get-ganancias/:userId', async (req, res) => {
             });
         }
 
-        // Verificar si es un mes futuro
-        const fechaActual = new Date();
-        const fechaConsulta = new Date(parseInt(year), parseInt(month) - 1);
-        const esMesFuturo = fechaConsulta > fechaActual;
+        // Calcular fechas de inicio y fin del mes
+        const monthStart = moment([parseInt(year), parseInt(month) - 1, 1]).startOf('month');
+        const monthEnd = moment(monthStart).endOf('month');
 
-        // Calcular ocupación actual
+        // Obtener reservaciones del mes
+        const reservations = await Reservation.find({
+            user: new mongoose.Types.ObjectId(userId),
+            $or: [
+                {
+                    end: { $gte: monthStart.toDate() },
+                    start: { $lte: monthEnd.toDate() }
+                }
+            ]
+        }).populate('payments');
+
+        // Calcular totales igual que en el Excel
+        const totals = {
+            efectivo: 0,
+            tarjeta: 0,
+            transferencia: 0,
+            total: 0,
+            pendiente: 0
+        };
+
+        // Procesar cada reservación
+        reservations.forEach(reservation => {
+            const startDate = moment(reservation.start).add(3, 'hours');
+            const endDate = moment(reservation.end).add(3, 'hours');
+
+            // Calcular días efectivos en el mes actual
+            const effectiveStart = moment.max(startDate, monthStart);
+            const effectiveEnd = moment.min(endDate, monthEnd);
+            const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
+            const totalNights = reservation.nights || 0;
+
+            // Verificar si la reserva pertenece a este mes
+            const startsInThisMonth = startDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const endsInThisMonth = endDate.isBetween(monthStart, monthEnd, 'month', '[]');
+            const belongsToThisMonth = startsInThisMonth || endsInThisMonth;
+
+            if (belongsToThisMonth) {
+                // Calcular la proporción de noches en este mes
+                const proportionFactor = nightsInMonth / totalNights;
+                const payments = reservation.payments || [];
+
+                // Procesar pagos proporcionalmente
+                payments.forEach(payment => {
+                    if (payment.method && payment.amount) {
+                        const proportionalAmount = payment.amount * proportionFactor;
+                        totals[payment.method] += proportionalAmount;
+                        totals.total += proportionalAmount;
+                    }
+                });
+
+                // Calcular monto pendiente proporcional
+                if (startsInThisMonth) {
+                    const montoPendiente = (reservation.montoPendiente || 0) * proportionFactor;
+                    totals.pendiente += montoPendiente;
+                }
+            }
+        });
+
+        // Calcular estadísticas de ocupación
         const estadisticasOcupacion = await calcularOcupacionMensual(month, year);
-        console.log('Estadísticas de ocupación obtenidas:', estadisticasOcupacion);
-        const occupancyRate = estadisticasOcupacion.porcentajeOcupacion || 0;
 
-        // Primero intentar cargar de la base de datos para cualquier mes
+        // Obtener el documento de ganancias existente
         let ganancias = await Ganancias.findOne({
             userId,
-            month,
+            month: month.toString(),
             year: parseInt(year)
         });
 
-        // Si no existe, usar plantilla para cualquier mes
+        // Si no existe, crear uno nuevo
         if (!ganancias) {
-            const datosBase = {
-                ingresos: plantillaNoviembre.ingresos,
-                gastosOrdinarios: plantillaNoviembre.gastosOrdinarios.map(gasto => {
-                    const gastoBase = {
-                        ...gasto
-                    };
-
-                    // Agregar fecha para HORAS_EXTRAS
-                    if (gasto.tipo === 'HORAS_EXTRAS') {
-                        gastoBase.fecha = new Date();
-                    }
-
-                    return gastoBase;
-                }),
-                gastosExtraordinarios: plantillaNoviembre.gastosExtraordinarios,
-                occupancyRate: occupancyRate,
-                month,
-                year: parseInt(year),
+            ganancias = new Ganancias({
                 userId,
-                cajaAnterior: 0,
-                caja: {
-                    cajaAnterior: 0,
-                    ingresosEfectivo: 0,
-                    gastosEfectivo: 0,
-                    saldoFinal: 0
-                }
-            };
-
-            // Si no es diciembre, guardar en la base de datos
-            if (month !== '12') {
-                ganancias = new Ganancias(datosBase);
-                await ganancias.save();
-            } else {
-                // Para diciembre solo retornar los datos sin guardar
-                return res.status(200).json({
-                    data: datosBase
-                });
-            }
+                month: month.toString(),
+                year: parseInt(year),
+                ingresos: [
+                    { subcategoria: 'Efectivo', monto: totals.efectivo },
+                    { subcategoria: 'Tarjeta', monto: totals.tarjeta },
+                    { subcategoria: 'Transferencia', monto: totals.transferencia }
+                ],
+                gastosOrdinarios: [],
+                gastosExtraordinarios: [],
+                occupancyRate: estadisticasOcupacion.porcentajeOcupacion
+            });
+        } else {
+            // Actualizar los ingresos con los nuevos totales
+            ganancias.ingresos = [
+                { subcategoria: 'Efectivo', monto: totals.efectivo },
+                { subcategoria: 'Tarjeta', monto: totals.tarjeta },
+                { subcategoria: 'Transferencia', monto: totals.transferencia }
+            ];
+            ganancias.occupancyRate = estadisticasOcupacion.porcentajeOcupacion;
         }
-
-        // Actualizar porcentaje de ocupación
-        ganancias.occupancyRate = occupancyRate;
-
-        // Eliminar duplicados en gastosOrdinarios
-        const gastosUnicos = new Map();
-        ganancias.gastosOrdinarios.forEach(gasto => {
-            const key = `${gasto.tipo}-${gasto.concepto}`;
-            if (!gastosUnicos.has(key) || gasto.updatedAt > gastosUnicos.get(key).updatedAt) {
-                gastosUnicos.set(key, gasto);
-            }
-        });
-        ganancias.gastosOrdinarios = Array.from(gastosUnicos.values());
-
-        // Recalcular valores de caja
-        const ingresosEfectivo = ganancias.ingresos
-            .find(i => i.subcategoria === 'Efectivo')?.monto || 0;
-
-        const gastosEfectivo = ganancias.gastosOrdinarios
-            .filter(g => g.metodoPago === 'EFECTIVO')
-            .reduce((sum, g) => sum + (g.monto || 0), 0);
-
-        ganancias.caja = {
-            cajaAnterior: ganancias.cajaAnterior,
-            ingresosEfectivo,
-            gastosEfectivo,
-            saldoFinal: ganancias.cajaAnterior + ingresosEfectivo - gastosEfectivo
-        };
 
         await ganancias.save();
 
         res.status(200).json({
-            data: ganancias
+            data: {
+                ...ganancias.toObject(),
+                ingresos: [
+                    { subcategoria: 'Efectivo', monto: totals.efectivo },
+                    { subcategoria: 'Tarjeta', monto: totals.tarjeta },
+                    { subcategoria: 'Transferencia', monto: totals.transferencia },
+                    { subcategoria: 'Total', monto: totals.total }
+                ]
+            }
         });
 
     } catch (error) {
         console.error('Error al obtener ganancias:', error);
         res.status(500).json({
             message: "Error al obtener los datos",
+            error: error.message
+        });
+    }
+});
+
+// Ruta para limpiar toda la colección manteniendo solo el documento actual
+router.delete('/cleanup/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { currentDocId } = req.query;
+
+        if (!userId || !currentDocId) {
+            return res.status(400).json({
+                message: "Se requiere userId y el ID del documento actual"
+            });
+        }
+
+        // 1. Primero obtener y guardar una copia del documento actual
+        const currentDoc = await Ganancias.findById(currentDocId);
+        if (!currentDoc) {
+            return res.status(404).json({
+                message: "No se encontró el documento actual especificado"
+            });
+        }
+
+        // Guardar una copia de los datos actuales
+        const docData = currentDoc.toObject();
+        delete docData._id; // Removemos el _id para poder crear uno nuevo
+
+        // 2. Borrar toda la colección para este usuario
+        await Ganancias.deleteMany({ userId });
+
+        // 3. Restaurar el documento actual
+        const restoredDoc = await Ganancias.create(docData);
+
+        res.status(200).json({
+            message: "Base de datos limpiada exitosamente",
+            keptDocument: {
+                id: restoredDoc._id,
+                month: restoredDoc.month,
+                year: restoredDoc.year,
+                updatedAt: restoredDoc.updatedAt
+            }
+        });
+
+    } catch (error) {
+        console.error('Error al limpiar la base de datos:', error);
+        res.status(500).json({
+            message: "Error al limpiar la base de datos",
             error: error.message
         });
     }

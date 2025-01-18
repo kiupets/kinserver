@@ -1,0 +1,887 @@
+{
+    "_id": {
+        "$oid": "678035e26f0120544a3993ce"
+    },
+    "month": "11",
+    "userId": {
+        "$oid": "65d62a555fcb84dd438ce091"
+    },
+    "year": {
+        "$numberInt": "2024"
+    },
+    "__v": {
+        "$numberInt": "0"
+    },
+    "caja": {
+        "cajaAnterior": {
+            "$numberInt": "1489500"
+        },
+        "ingresosEfectivo": {
+            "$numberDouble": "5048833.333333333"
+        },
+        "gastosEfectivo": {
+            "$numberInt": "5468998"
+        },
+        "saldoFinal": {
+            "$numberDouble": "1069335.333333333"
+        }
+    },
+    "cajaAnterior": {
+        "$numberInt": "1489500"
+    },
+    "createdAt": {
+        "$date": {
+            "$numberLong": "1736455486048"
+        }
+    },
+    "fecha": {
+        "$date": {
+            "$numberLong": "1736455486052"
+        }
+    },
+    "gastosExtraordinarios": [
+        {
+            "concepto": "cpu 7°9",
+            "monto": {
+                "$numberInt": "35000"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa51ec4592460178e89a1"
+            }
+        },
+        {
+            "concepto": "colchon 5/15",
+            "monto": {
+                "$numberInt": "19500"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa51ec4592460178e89a2"
+            }
+        },
+        {
+            "concepto": "sabanas matri 5/6",
+            "monto": {
+                "$numberInt": "8000"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637937"
+            }
+        },
+        {
+            "concepto": "acolchado matri 4/6",
+            "monto": {
+                "$numberInt": "24000"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637938"
+            }
+        },
+        {
+            "concepto": "acolchado 1pl x 4/6",
+            "monto": {
+                "$numberInt": "10000"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637939"
+            }
+        },
+        {
+            "concepto": "HIDRO 3/3",
+            "monto": {
+                "$numberInt": "26000"
+            },
+            "categoria": "Mantenimiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793a"
+            }
+        },
+        {
+            "concepto": "HEDREON 3/6",
+            "monto": {
+                "$numberInt": "18500"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793b"
+            }
+        },
+        {
+            "concepto": "televisor 2/12 cuotas",
+            "monto": {
+                "$numberInt": "27500"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793c"
+            }
+        },
+        {
+            "concepto": "shampoo",
+            "monto": {
+                "$numberInt": "44000"
+            },
+            "categoria": "Insumos",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793d"
+            }
+        },
+        {
+            "concepto": "termo agua cailente  1/6",
+            "monto": {
+                "$numberInt": "10000"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793e"
+            }
+        },
+        {
+            "concepto": "mermelada",
+            "monto": {
+                "$numberInt": "54720"
+            },
+            "categoria": "Insumos",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb63793f"
+            }
+        },
+        {
+            "concepto": "tv 1/9",
+            "monto": {
+                "$numberInt": "32000"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637940"
+            }
+        },
+        {
+            "concepto": "memoria kingstone",
+            "monto": {
+                "$numberInt": "39000"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637941"
+            }
+        },
+        {
+            "concepto": "fundas x 20",
+            "monto": {
+                "$numberInt": "52000"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637942"
+            }
+        },
+        {
+            "concepto": "colchon",
+            "monto": {
+                "$numberInt": "153500"
+            },
+            "categoria": "Habitaciones",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637943"
+            }
+        },
+        {
+            "concepto": "ventilador 2/3",
+            "monto": {
+                "$numberInt": "32000"
+            },
+            "categoria": "Equipamiento",
+            "metodoPago": "EFECTIVO",
+            "_id": {
+                "$oid": "675fa89cf1fff455bb637944"
+            }
+        }
+    ],
+    "gastosOrdinarios": [
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "3°1",
+            "monto": {
+                "$numberInt": "100000"
+            },
+            "metodoPago": "TARJETA",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c359c"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "ALQUILER",
+            "monto": {
+                "$numberInt": "600000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c359d"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "CABLE",
+            "monto": {
+                "$numberInt": "45000"
+            },
+            "metodoPago": "TARJETA",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c359e"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "INTERNET",
+            "monto": {
+                "$numberInt": "45000"
+            },
+            "metodoPago": "TARJETA",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c359f"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "EXPENSAS",
+            "monto": {
+                "$numberInt": "0"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a0"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "UTHGRA",
+            "monto": {
+                "$numberInt": "70000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a1"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "LAVANDERIA",
+            "monto": {
+                "$numberInt": "377000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a2"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "PANNETONE",
+            "monto": {
+                "$numberInt": "329998"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a3"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "GAS",
+            "monto": {
+                "$numberInt": "88000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a4"
+            }
+        },
+        {
+            "tipo": "SERVICIOS",
+            "concepto": "LUZ",
+            "monto": {
+                "$numberInt": "780000"
+            },
+            "metodoPago": "TRANSFERENCIA",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a5"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "MATI",
+            "monto": {
+                "$numberInt": "380000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a6"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "GABY",
+            "monto": {
+                "$numberInt": "380000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a7"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "GONZALO",
+            "monto": {
+                "$numberInt": "900000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a8"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "DANY",
+            "monto": {
+                "$numberInt": "345000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35a9"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "PRISCILA",
+            "monto": {
+                "$numberInt": "170000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35aa"
+            }
+        },
+        {
+            "tipo": "SUELDOS",
+            "concepto": "SOL",
+            "monto": {
+                "$numberInt": "170000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35ab"
+            }
+        },
+        {
+            "tipo": "OTROS",
+            "concepto": "FERIADOS",
+            "monto": {
+                "$numberInt": "151000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35ac"
+            }
+        },
+        {
+            "tipo": "INSUMOS_DESAYUNO",
+            "concepto": "VIEJO ALMACEN",
+            "monto": {
+                "$numberInt": "130000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35ad"
+            }
+        },
+        {
+            "tipo": "INSUMOS_LIMPIEZA",
+            "concepto": "SUPERLIMP",
+            "monto": {
+                "$numberInt": "62000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35ae"
+            }
+        },
+        {
+            "tipo": "MANTENIMIENTO",
+            "concepto": "REPARACIONES",
+            "monto": {
+                "$numberInt": "30000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35af"
+            }
+        },
+        {
+            "tipo": "MANTENIMIENTO",
+            "concepto": "AIRE ACONDICIONADO",
+            "monto": {
+                "$numberInt": "25000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b0"
+            }
+        },
+        {
+            "tipo": "MANTENIMIENTO",
+            "concepto": "JARDÍN",
+            "monto": {
+                "$numberInt": "28000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b1"
+            }
+        },
+        {
+            "tipo": "OTROS",
+            "concepto": "OTROS GASTOS VARIOS",
+            "monto": {
+                "$numberInt": "20000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b2"
+            }
+        },
+        {
+            "tipo": "INSUMOS_DESAYUNO",
+            "concepto": "MANTECA",
+            "monto": {
+                "$numberInt": "28000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b3"
+            }
+        },
+        {
+            "tipo": "INSUMOS_DESAYUNO",
+            "concepto": "TOSTADAS",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b4"
+            }
+        },
+        {
+            "tipo": "PRESENTISMO",
+            "concepto": "GABY",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b5"
+            }
+        },
+        {
+            "tipo": "PRESENTISMO",
+            "concepto": "MATI",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b6"
+            }
+        },
+        {
+            "tipo": "PRESENTISMO",
+            "concepto": "DANY",
+            "monto": {
+                "$numberInt": "70000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b7"
+            }
+        },
+        {
+            "tipo": "PRESENTISMO",
+            "concepto": "PRISCILA",
+            "monto": {
+                "$numberInt": "50000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b8"
+            }
+        },
+        {
+            "tipo": "PRESENTISMO",
+            "concepto": "SOL",
+            "monto": {
+                "$numberInt": "40000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35b9"
+            }
+        },
+        {
+            "tipo": "PREMIOS",
+            "concepto": "GABY",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35ba"
+            }
+        },
+        {
+            "tipo": "PREMIOS",
+            "concepto": "MATI",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35bb"
+            }
+        },
+        {
+            "tipo": "PREMIOS",
+            "concepto": "DANY",
+            "monto": {
+                "$numberInt": "55000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35bc"
+            }
+        },
+        {
+            "tipo": "PREMIOS",
+            "concepto": "PRISCILA",
+            "monto": {
+                "$numberInt": "45000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35bd"
+            }
+        },
+        {
+            "tipo": "PREMIOS",
+            "concepto": "SOL",
+            "monto": {
+                "$numberInt": "45000"
+            },
+            "metodoPago": "EFECTIVO",
+            "valorHora": {
+                "$numberInt": "1500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35be"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "HONORIO",
+            "monto": {
+                "$numberInt": "160000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "TARDE",
+            "cantidadHoras": {
+                "$numberInt": "64"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35bf"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "ABRIL",
+            "monto": {
+                "$numberInt": "80000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "MAÑANA",
+            "cantidadHoras": {
+                "$numberInt": "32"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c0"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "MAXI",
+            "monto": {
+                "$numberInt": "160000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "MAÑANA",
+            "cantidadHoras": {
+                "$numberInt": "64"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c1"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "DANY",
+            "monto": {
+                "$numberInt": "40000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "MAÑANA",
+            "cantidadHoras": {
+                "$numberInt": "16"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c2"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "SOL",
+            "monto": {
+                "$numberInt": "20000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "MAÑANA",
+            "cantidadHoras": {
+                "$numberInt": "8"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c3"
+            }
+        },
+        {
+            "tipo": "HORAS_EXTRAS",
+            "concepto": "GONZALO",
+            "monto": {
+                "$numberInt": "20000"
+            },
+            "metodoPago": "EFECTIVO",
+            "fecha": {
+                "$date": {
+                    "$numberLong": "1736380800000"
+                }
+            },
+            "turno": "NOCHE",
+            "cantidadHoras": {
+                "$numberInt": "8"
+            },
+            "valorHora": {
+                "$numberInt": "2500"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c4"
+            }
+        }
+    ],
+    "ingresos": [
+        {
+            "subcategoria": "Efectivo",
+            "monto": {
+                "$numberDouble": "5048833.333333333"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c5"
+            }
+        },
+        {
+            "subcategoria": "Tarjeta",
+            "monto": {
+                "$numberInt": "2801000"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c6"
+            }
+        },
+        {
+            "subcategoria": "Transferencia",
+            "monto": {
+                "$numberInt": "5053000"
+            },
+            "_id": {
+                "$oid": "678035823342d712822c35c7"
+            }
+        }
+    ],
+    "occupancyRate": {
+        "$numberDouble": "64.89"
+    },
+    "updatedAt": {
+        "$date": {
+            "$numberLong": "1736455554723"
+        }
+    }
+}

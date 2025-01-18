@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 const Reservation = require('../models/Reservation');
 
+const TOTAL_HABITACIONES = 15;
+
 const getReservationsForPeriod = async (userId, startDate, endDate) => {
     const monthStart = moment(startDate).startOf('month').toDate();
     const monthEnd = moment(endDate).endOf('month').toDate();
@@ -112,6 +114,95 @@ const sumPaymentsByMethod = (payments) => {
         transferencia: 0,
         total: 0
     });
+};
+
+const calculateOccupancyStats = (reservations, startDate, endDate) => {
+    const monthStart = moment(startDate).startOf('month');
+    const monthEnd = moment(endDate).endOf('month');
+    const daysInMonth = monthEnd.diff(monthStart, 'days') + 1;
+    const totalPossibleRoomDays = TOTAL_HABITACIONES * daysInMonth;
+
+    console.log('Calculando estadísticas de ocupación:', {
+        reservations: reservations.length,
+        startDate: monthStart.format('YYYY-MM-DD'),
+        endDate: monthEnd.format('YYYY-MM-DD'),
+        daysInMonth,
+        totalPossibleRoomDays
+    });
+
+    let totalNochesOcupadas = 0;
+    let habitacionesPorDia = new Array(daysInMonth).fill(0);
+    let reservasCruzanMeses = 0;
+    let detallesReservasCruzadas = [];
+    let diasConOcupacion = new Set();
+
+    reservations.forEach(reservacion => {
+        const startDate = moment(reservacion.start);
+        const endDate = moment(reservacion.end);
+        const effectiveStart = moment.max(startDate, monthStart);
+        const effectiveEnd = moment.min(endDate, monthEnd);
+        const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
+        const crossesMonths = startDate.month() !== endDate.month();
+
+        console.log('Procesando reservación:', {
+            id: reservacion._id,
+            inicio: effectiveStart.format('YYYY-MM-DD'),
+            fin: effectiveEnd.format('YYYY-MM-DD'),
+            noches: nightsInMonth,
+            cruzaMeses: crossesMonths,
+            habitaciones: reservacion.room ? (Array.isArray(reservacion.room) ? reservacion.room.length : 1) : 1
+        });
+
+        if (crossesMonths) {
+            reservasCruzanMeses++;
+            detallesReservasCruzadas.push({
+                id: reservacion._id,
+                nombre: reservacion.name,
+                habitacion: Array.isArray(reservacion.room) ? reservacion.room.join(', ') : reservacion.room,
+                inicio: startDate.format('DD/MM/YYYY'),
+                fin: endDate.format('DD/MM/YYYY'),
+                nochesEnEsteMes: nightsInMonth,
+                nochesTotales: endDate.diff(startDate, 'days')
+            });
+        }
+
+        if (nightsInMonth > 0) {
+            const numHabitaciones = reservacion.room ?
+                (Array.isArray(reservacion.room) ? reservacion.room.length : 1) : 1;
+
+            for (let i = 0; i < nightsInMonth; i++) {
+                const diaIndex = effectiveStart.clone().add(i, 'days').diff(monthStart, 'days');
+                if (diaIndex >= 0 && diaIndex < daysInMonth) {
+                    habitacionesPorDia[diaIndex] += numHabitaciones;
+                    totalNochesOcupadas += numHabitaciones;
+                    diasConOcupacion.add(diaIndex);
+                }
+            }
+        }
+    });
+
+    const porcentajeOcupacion = Number(((totalNochesOcupadas / totalPossibleRoomDays) * 100).toFixed(2));
+
+    console.log('Resultados finales:', {
+        totalNochesOcupadas,
+        diasConOcupacion: diasConOcupacion.size,
+        porcentajeOcupacion,
+        ocupacionPorDia: habitacionesPorDia
+    });
+
+    return {
+        porcentajeOcupacion,
+        diasOcupados: diasConOcupacion.size,
+        totalReservaciones: reservations.length,
+        diasEnMes: daysInMonth,
+        habitacionesDisponiblesMes: totalPossibleRoomDays,
+        reservasCruzanMeses,
+        detallesReservasCruzadas,
+        ocupacionDiaria: habitacionesPorDia.map((cantidad, index) => ({
+            fecha: moment(monthStart).add(index, 'days').format('DD/MM/YYYY'),
+            habitaciones: cantidad
+        }))
+    };
 };
 
 // Get payment totals for current month
@@ -302,10 +393,16 @@ router.get('/yearly-summary/:userId/:year', async (req, res) => {
 router.get('/date-range/:userId/:startDate/:endDate', async (req, res) => {
     try {
         const { userId, startDate, endDate } = req.params;
-        const start = moment(startDate);
-        const end = moment(endDate);
+        console.log('Recibida solicitud de totales:', {
+            userId,
+            startDate,
+            endDate,
+            parsedStartDate: moment(startDate).format('YYYY-MM-DD'),
+            parsedEndDate: moment(endDate).format('YYYY-MM-DD')
+        });
 
-        const reservations = await getReservationsForPeriod(userId, start, end);
+        const reservations = await getReservationsForPeriod(userId, startDate, endDate);
+        console.log(`Encontradas ${reservations.length} reservaciones para el período`);
 
         let totals = {
             efectivo: 0,
@@ -320,16 +417,28 @@ router.get('/date-range/:userId/:startDate/:endDate', async (req, res) => {
             { method: 'transferencia', amount: 0, count: 0 }
         ];
 
-        reservations.forEach(reservation => {
-            const paymentTotals = calculatePaymentTotals(reservation, {
-                startDate: start.toDate(),
-                endDate: end.toDate()
+        // Procesar cada reservación
+        reservations.forEach((reservation, index) => {
+            console.log(`Procesando reservación ${index + 1}:`, {
+                id: reservation._id,
+                start: moment(reservation.start).format('YYYY-MM-DD'),
+                end: moment(reservation.end).format('YYYY-MM-DD'),
+                payments: reservation.payments
             });
 
+            const paymentTotals = calculatePaymentTotals(reservation, {
+                startDate: new Date(startDate),
+                endDate: new Date(endDate)
+            });
+
+            console.log('Totales calculados para la reservación:', paymentTotals);
+
+            // Sumar al total general
             Object.keys(totals).forEach(method => {
                 totals[method] += paymentTotals[method];
             });
 
+            // Actualizar detalles
             Object.keys(paymentTotals).forEach(method => {
                 if (method !== 'total') {
                     const detail = details.find(d => d.method === method);
@@ -341,24 +450,20 @@ router.get('/date-range/:userId/:startDate/:endDate', async (req, res) => {
             });
         });
 
-        const percentages = {
-            efectivo: totals.total > 0 ? (totals.efectivo / totals.total) * 100 : 0,
-            tarjeta: totals.total > 0 ? (totals.tarjeta / totals.total) * 100 : 0,
-            transferencia: totals.total > 0 ? (totals.transferencia / totals.total) * 100 : 0
-        };
+        // Calcular estadísticas de ocupación
+        const occupancyStats = calculateOccupancyStats(reservations, startDate, endDate);
 
         const response = {
             totals,
-            percentages,
             details: details.filter(d => d.count > 0),
-            totalReservations: reservations.length,
-            averagePaymentAmount: totals.total > 0 ? totals.total / details.reduce((sum, d) => sum + d.count, 0) : 0,
-            dateRange: { start, end }
+            occupancyStats
         };
 
-        res.status(200).json(response);
+        console.log('Respuesta:', response);
+        res.json(response);
+
     } catch (error) {
-        console.error('Error in date range totals:', error);
+        console.error('Error calculando totales:', error);
         res.status(500).json({ error: error.message });
     }
 });

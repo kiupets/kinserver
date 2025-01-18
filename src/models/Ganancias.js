@@ -6,13 +6,14 @@ const VALOR_HORA_DEFAULT = 1500;
 const TIPOS_GASTO = [
     'SERVICIOS',
     'SUELDOS',
+    'FERIADOS',
     'PRESENTISMO',
     'PREMIOS',
     'HORAS_EXTRAS',
+    'AGUINALDO',
     'INSUMOS_DESAYUNO',
     'INSUMOS_LIMPIEZA',
-    'MANTENIMIENTO',
-    'OTROS'
+    'MANTENIMIENTO'
 ];
 
 const gananciasSchema = new mongoose.Schema({
@@ -42,9 +43,16 @@ const gananciasSchema = new mongoose.Schema({
             type: String,
             required: true
         },
+        fechaCompra: {
+            type: Date
+        },
         monto: {
             type: Number,
             required: true
+        },
+        montoPendiente: {
+            type: Number,
+            default: 0
         },
         metodoPago: {
             type: String,
@@ -76,14 +84,31 @@ const gananciasSchema = new mongoose.Schema({
         valorHora: {
             type: Number,
             default: VALOR_HORA_DEFAULT
+        },
+        periodo: {
+            type: String,
+            enum: ['1', '2'],
+            required: function () {
+                return this.tipo === 'AGUINALDO';
+            }
         }
     }],
     gastosExtraordinarios: [{
         concepto: String,
-        monto: Number,
         categoria: {
             type: String,
             enum: ['Equipamiento', 'Habitaciones', 'Mantenimiento', 'Financiamiento', 'Insumos']
+        },
+        fechaCompra: {
+            type: Date
+        },
+        monto: {
+            type: Number,
+            required: true
+        },
+        montoPendiente: {
+            type: Number,
+            default: 0
         },
         metodoPago: {
             type: String,
@@ -142,7 +167,13 @@ gananciasSchema.pre('save', function (next) {
             gasto.monto = (gasto.cantidadHoras || 0) * (gasto.valorHora || VALOR_HORA_DEFAULT);
         }
 
-        // Asegurar que el monto sea un número para insumos
+        // Procesar aguinaldo
+        if (gasto.tipo === 'AGUINALDO') {
+            gasto.monto = Number(gasto.monto) || 0;
+            gasto.periodo = gasto.periodo || '1';
+        }
+
+        // Procesar insumos
         if (gasto.tipo === 'INSUMOS_DESAYUNO' || gasto.tipo === 'INSUMOS_LIMPIEZA') {
             gasto.monto = Number(gasto.monto) || 0;
         }
