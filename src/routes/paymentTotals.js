@@ -63,39 +63,43 @@ const calculatePaymentTotals = (reservation, options = {}) => {
     const reservationStart = moment(reservation.start);
     const reservationEnd = moment(reservation.end);
 
-    // Si la reserva está completamente dentro del rango
-    if (reservationStart.isSameOrAfter(rangeStart) &&
-        reservationEnd.isSameOrBefore(rangeEnd)) {
+    // Calcular noches totales y verificar si cruza meses
+    const totalNights = reservationEnd.diff(reservationStart, 'days') + 1;
+    const crossesMonths = reservationStart.format('YYYY-MM') !== reservationEnd.format('YYYY-MM');
+    const isOneNightCross = totalNights === 2 && crossesMonths;
+    const startsInRange = reservationStart.isBetween(rangeStart, rangeEnd, 'month', '[]');
+
+    // Para reservas de una noche entre meses, asignar el monto total al mes de inicio
+    if (isOneNightCross && startsInRange) {
         return sumPaymentsByMethod(reservation.payments || []);
     }
 
-    // Para reservas que cruzan el rango
-    const totalNights = reservationEnd.diff(reservationStart, 'days');
-    if (totalNights <= 0) return { efectivo: 0, tarjeta: 0, transferencia: 0, total: 0 };
-
-    const pricePerNight = reservation.precioTotal / totalNights;
-
-    // Calcular las noches dentro del rango
+    // Para reservas que cruzan más de una noche
     const overlapStart = moment.max(rangeStart, reservationStart);
     const overlapEnd = moment.min(rangeEnd, reservationEnd);
-    const nightsInRange = overlapEnd.diff(overlapStart, 'days');
+    const nightsInRange = overlapEnd.diff(overlapStart, 'days') + 1;
+
+    // Si no hay noches en el rango, retornar 0
+    if (nightsInRange <= 0) {
+        return { efectivo: 0, tarjeta: 0, transferencia: 0, total: 0 };
+    }
 
     // Calcular el monto proporcional
-    const amountForPeriod = pricePerNight * nightsInRange;
-    const proportion = amountForPeriod / reservation.precioTotal;
+    const proportionFactor = nightsInRange / totalNights;
 
     const totals = {
         efectivo: 0,
         tarjeta: 0,
         transferencia: 0,
-        total: amountForPeriod
+        total: 0
     };
 
     // Distribuir los pagos según la proporción
     (reservation.payments || []).forEach(payment => {
         if (!payment.method || !payment.amount) return;
-        const proportionalPayment = payment.amount * proportion;
-        totals[payment.method] += proportionalPayment;
+        const amount = payment.amount * proportionFactor;
+        totals[payment.method] += amount;
+        totals.total += amount;
     });
 
     return totals;

@@ -66,31 +66,66 @@ router.post('/export-ganancias', async (req, res) => {
             $or: [
                 // Caso 1: La reserva empieza en el mes
                 {
-                    start: { $gte: primerDiaMes.toDate(), $lte: ultimoDiaMes.toDate() }
+                    start: { $gte: primerDiaMes, $lte: ultimoDiaMes }
                 },
                 // Caso 2: La reserva termina en el mes
                 {
-                    end: { $gte: primerDiaMes.toDate(), $lte: ultimoDiaMes.toDate() }
+                    end: { $gte: primerDiaMes, $lte: ultimoDiaMes }
                 },
                 // Caso 3: La reserva abarca todo el mes
                 {
-                    start: { $lte: primerDiaMes.toDate() },
-                    end: { $gte: ultimoDiaMes.toDate() }
+                    start: { $lte: primerDiaMes },
+                    end: { $gte: ultimoDiaMes }
                 }
             ]
+        }).lean();
+
+        console.log('Reservaciones encontradas:', reservaciones.length);
+
+        // Procesar cada reservación para calcular montos correctamente
+        const reservacionesProcesadas = reservaciones.map(reserva => {
+            const inicio = moment(reserva.start);
+            const fin = moment(reserva.end);
+            const cruzaMeses = inicio.month() !== fin.month() || inicio.year() !== fin.year();
+
+            if (cruzaMeses) {
+                // Calcular las noches efectivas en este mes
+                const inicioEfectivo = moment.max(inicio, primerDiaMes);
+                const finEfectivo = moment.min(fin, ultimoDiaMes);
+                const nochesEnEsteMes = finEfectivo.diff(inicioEfectivo, 'days');
+                const nochesTotales = fin.diff(inicio, 'days');
+
+                // Calcular la proporción del monto que corresponde a este mes
+                const proporcion = nochesEnEsteMes / nochesTotales;
+
+                // Ajustar los montos según la proporción
+                return {
+                    ...reserva,
+                    price: reserva.price * proporcion,
+                    precioTotal: reserva.precioTotal * proporcion,
+                    montoPendiente: reserva.montoPendiente * proporcion,
+                    payments: (reserva.payments || []).map(payment => ({
+                        ...payment,
+                        amount: payment.amount * proporcion
+                    }))
+                };
+            }
+
+            return reserva;
         });
 
-        // 3. Calcular todos los valores necesarios
-        const totalIngresos = ingresos
-            .filter(ingreso => ['Efectivo', 'Tarjeta', 'Transferencia'].includes(ingreso.subcategoria))
-            .reduce((sum, item) => sum + (parseFloat(item.monto) || 0), 0);
+        // 3. Calcular todos los valores necesarios usando las reservaciones procesadas
+        const totalIngresos = reservacionesProcesadas
+            .reduce((sum, reserva) => {
+                const pagos = reserva.payments || [];
+                return sum + pagos.reduce((total, pago) => total + (parseFloat(pago.amount) || 0), 0);
+            }, 0);
 
         const totalGastosOrd = gastosOrdinarios.reduce((sum, item) => sum + (parseFloat(item.monto) || 0), 0);
         const totalGastosExt = gastosExtraordinarios.reduce((sum, item) => sum + (parseFloat(item.monto) || 0), 0);
 
-        const pendientesReservas = reservaciones.reduce((sum, reserva) => {
-            return sum + (parseFloat(reserva.montoPendiente) || 0);
-        }, 0);
+        const pendientesReservas = reservacionesProcesadas
+            .reduce((sum, reserva) => sum + (parseFloat(reserva.montoPendiente) || 0), 0);
 
         const facturacionTotal = totalIngresos + pendientesReservas;
 
@@ -105,9 +140,9 @@ router.post('/export-ganancias', async (req, res) => {
         try {
             if (mongoose.Types.ObjectId.isValid(userId)) {
                 estadisticasOcupacion = await calcularOcupacionMensual(
-                    new mongoose.Types.ObjectId(userId),
                     selectedMonth,
-                    selectedYear
+                    selectedYear,
+                    new mongoose.Types.ObjectId(userId)
                 );
             } else {
                 console.error('Invalid userId format:', userId);
@@ -117,16 +152,16 @@ router.post('/export-ganancias', async (req, res) => {
         }
 
         // Calcular promedio de noches por reserva
-        const totalNoches = reservaciones.reduce((sum, reserva) => {
+        const totalNoches = reservacionesProcesadas.reduce((sum, reserva) => {
             const inicio = moment(reserva.start);
             const fin = moment(reserva.end);
             return sum + fin.diff(inicio, 'days');
         }, 0);
-        const promedioNoches = totalNoches / (reservaciones.length || 1);
+        const promedioNoches = totalNoches / (reservacionesProcesadas.length || 1);
 
         // Calcular estadísticas de métodos de pago
         const metodosStats = {};
-        const reservasCruzadas = reservaciones.filter(reserva => {
+        const reservasCruzadas = reservacionesProcesadas.filter(reserva => {
             const inicio = moment(reserva.start);
             const fin = moment(reserva.end);
             return inicio.month() !== fin.month() || inicio.year() !== fin.year();
@@ -138,12 +173,12 @@ router.post('/export-ganancias', async (req, res) => {
         }));
 
         // Contabilizar métodos de pago
-        reservaciones.forEach(reserva => {
+        reservacionesProcesadas.forEach(reserva => {
             const metodo = reserva.metodoPago || 'No especificado';
             metodosStats[metodo] = (metodosStats[metodo] || 0) + 1;
         });
 
-        const totalReservaciones = reservaciones.length;
+        const totalReservaciones = reservacionesProcesadas.length;
 
         // Calcular valores de caja con más precisión
         const cajaAnteriorNum = Number(parseFloat(cajaAnterior || 0).toFixed(2));
@@ -344,12 +379,12 @@ router.post('/export-ganancias', async (req, res) => {
                     monto: parseFloat(ingreso.monto) || 0,
                     porcentaje: ((parseFloat(ingreso.monto) / totalIngresos) * 100).toFixed(2)
                 })),
-            { categoria: '', subcategoria: 'Total', monto: totalIngresos, porcentaje: 50.00 },
+            { categoria: '', subcategoria: 'Total', monto: totalIngresos, porcentaje: ((totalIngresos / facturacionTotal) * 100).toFixed(2) },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null },
 
             // === PENDIENTES DE RESERVAS ===
             { categoria: 'PENDIENTES DE RESERVAS', subcategoria: '', monto: null, porcentaje: null },
-            ...reservaciones
+            ...reservacionesProcesadas
                 .filter(reserva => parseFloat(reserva.montoPendiente) > 0)
                 .map(reserva => ({
                     categoria: '',
@@ -361,7 +396,7 @@ router.post('/export-ganancias', async (req, res) => {
                 categoria: '',
                 subcategoria: 'Total Pendiente de Cobro',
                 monto: pendientesReservas,
-                porcentaje: 50.00
+                porcentaje: ((pendientesReservas / facturacionTotal) * 100).toFixed(2)
             },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null },
 
@@ -397,16 +432,12 @@ router.post('/export-ganancias', async (req, res) => {
 
             // === GASTOS EXTRAORDINARIOS ===
             { categoria: 'GASTOS EXTRAORDINARIOS', subcategoria: '', monto: null, porcentaje: null },
-            ...categorias.map(categoria => {
-                const gastosDeCategoria = gastosExtraordinarios.filter(g => g.categoria === categoria);
-                const subtotal = gastosDeCategoria.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-                return {
-                    categoria: '',
-                    subcategoria: categoria,
-                    monto: subtotal,
-                    porcentaje: ((subtotal / totalGastosExt) * 100).toFixed(2)
-                };
-            }),
+            ...gastosExtraordinarios.map(gasto => ({
+                categoria: '',
+                subcategoria: `${gasto.categoria} - ${gasto.concepto}`,
+                monto: parseFloat(gasto.monto) || 0,
+                porcentaje: ((parseFloat(gasto.monto) / totalGastosExt) * 100).toFixed(2)
+            })).filter(item => item.monto > 0),
             {
                 categoria: 'GASTOS EXTRAORDINARIOS',
                 subcategoria: 'Total',

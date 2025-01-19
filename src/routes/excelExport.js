@@ -100,18 +100,32 @@ router.get('/export-detailed', async (req, res) => {
             // Calcular días efectivos en el mes actual
             const effectiveStart = moment.max(startDate, monthStart);
             const effectiveEnd = moment.min(endDate, monthEnd);
-            const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
-            const totalNights = reservation.nights || 0;
+            const totalNights = endDate.diff(startDate, 'days') + 1;
+            const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days') + 1;
             const crossesMonths = startDate.format('YYYY-MM') !== endDate.format('YYYY-MM');
+            const isOneNightCross = totalNights === 2 && crossesMonths;
 
             // Verificar si la reserva pertenece a este mes
             const startsInThisMonth = startDate.isBetween(monthStart, monthEnd, 'month', '[]');
             const endsInThisMonth = endDate.isBetween(monthStart, monthEnd, 'month', '[]');
-            const belongsToThisMonth = startsInThisMonth || endsInThisMonth;
+            const belongsToThisMonth = startsInThisMonth || endsInThisMonth ||
+                (startDate.isBefore(monthStart) && endDate.isAfter(monthEnd));
 
             if (belongsToThisMonth) {
-                // Calcular la proporción de noches en este mes
-                const proportionFactor = nightsInMonth / totalNights;
+                // Para reservas de una noche entre meses, asignar el monto total al mes de inicio
+                const shouldUseFullAmount = isOneNightCross && startsInThisMonth;
+                const proportionFactor = shouldUseFullAmount ? 1 : nightsInMonth / totalNights;
+
+                console.log(`Reservation ${reservation._id || 'N/A'}: ` +
+                    `start=${startDate.format('DD/MM/YYYY')}, ` +
+                    `end=${endDate.format('DD/MM/YYYY')}, ` +
+                    `total nights=${totalNights}, ` +
+                    `nights in month=${nightsInMonth}, ` +
+                    `crosses months=${crossesMonths}, ` +
+                    `one night cross=${isOneNightCross}, ` +
+                    `using full amount=${shouldUseFullAmount}, ` +
+                    `proportion=${proportionFactor}`);
+
                 const payments = reservation.payments || [];
                 const totals = {
                     efectivo: 0,
@@ -123,15 +137,19 @@ router.get('/export-detailed', async (req, res) => {
                 const recepcionistas = new Set();
                 const metodosPago = new Set();
 
-                // Procesar pagos proporcionalmente
-                payments.forEach((payment, index) => {
-                    if (payment.method && payment.amount) {
-                        const paymentDate = moment(payment.date);
+                // Actualizar estadísticas de reservas que cruzan meses
+                if (crossesMonths && !shouldUseFullAmount) {
+                    statsData.crossMonthReservations++;
+                }
 
-                        // Distribuir el pago proporcionalmente según las noches en este mes
-                        const proportionalAmount = payment.amount * proportionFactor;
-                        totals[payment.method] += proportionalAmount;
-                        totals.total += proportionalAmount;
+                // Procesar pagos
+                payments.forEach(payment => {
+                    if (payment.method && payment.amount) {
+                        // Si es reserva de una noche entre meses y es el mes de inicio, usar monto completo
+                        // Si no, distribuir proporcionalmente
+                        const amount = shouldUseFullAmount ? payment.amount : payment.amount * proportionFactor;
+                        totals[payment.method] += amount;
+                        totals.total += amount;
                         metodosPago.add(payment.method);
                         if (payment.recepcionista) {
                             recepcionistas.add(payment.recepcionista);
@@ -139,10 +157,12 @@ router.get('/export-detailed', async (req, res) => {
                     }
                 });
 
-                // El monto pendiente se mantiene separado y no se suma al total
+                // El monto pendiente sigue la misma lógica
                 let montoPendiente = 0;
-                if (startDate.isBetween(monthStart, monthEnd, 'month', '[]')) {
-                    montoPendiente = (reservation.montoPendiente || 0) * proportionFactor;
+                if (startsInThisMonth) {
+                    montoPendiente = shouldUseFullAmount ?
+                        (reservation.montoPendiente || 0) :
+                        (reservation.montoPendiente || 0) * proportionFactor;
                 }
 
                 // Actualizar estadísticas
