@@ -3,6 +3,9 @@ const router = express.Router();
 const bcrypt = require("bcrypt");
 const User = require("../models/User");
 
+const billingPassword = process.env.BILLING_PASSWORD;
+const billingPasswordHash = process.env.BILLING_PASSWORD_HASH;
+
 router.post("/register", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -131,6 +134,34 @@ router.post("/logout", (req, res) => {
       res.json({ message: "Cierre de sesión exitoso" });
     }
   });
+});
+
+// Modificar la ruta de verificación para usar bcrypt
+router.post("/verify-billing-password", async (req, res) => {
+  const { password } = req.body;
+
+  console.log("Verificando contraseña de ingresos");
+  console.log("Password recibido:", password);
+  console.log("Hash esperado:", billingPasswordHash);
+
+  try {
+    const isPasswordValid = await bcrypt.compare(password, billingPasswordHash);
+
+    if (isPasswordValid) {
+      res.json({ success: true });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: "Contraseña incorrecta"
+      });
+    }
+  } catch (error) {
+    console.error("Error verificando contraseña:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error al verificar la contraseña"
+    });
+  }
 });
 
 module.exports = router;
