@@ -36,6 +36,11 @@ const gananciasSaveRouter = require('./src/routes/gananciasSave');
 const gananciasExportRouter = require('./src/routes/gananciasExport');
 const TensorFlowAgent = require('./src/agents/TensorFlowAgent');
 const tfAgent = new TensorFlowAgent();
+const gananciasBackup = require('./src/routes/gananciasBackup');
+const gananciasAnalisis = require('./src/routes/gananciasAnalisis');
+const financialReportRoutes = require('./src/routes/financialReport');
+const TelegramBot = require('node-telegram-bot-api');
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 
 // Variables globales
 const connectedUsers = [];
@@ -138,6 +143,11 @@ app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes);
 app.use('/', gananciasSaveRouter);
 app.use('/excel', gananciasExportRouter);
+app.use('/ganancias', gananciasExportRouter);
+app.use('/ganancias', gananciasSaveRouter);
+app.use('/ganancias', gananciasBackup);
+app.use('/ganancias', gananciasAnalisis);
+app.use('/financial-report', financialReportRoutes);
 
 // Socket connection handling
 io.on("connection", (socket) => {
@@ -473,7 +483,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
       return res.status(401).json({ message: "Usuario no autorizado" });
     }
 
-    // Verificar que la reserva existe y pertenece al usuario
+    // Obtener la reserva antes de eliminarla
     const reservation = await Reservation.findOne({
       _id: reservationId,
       user: userId
@@ -490,12 +500,26 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     const userSockets = connectedUsers.filter((user) => user.user === userId);
     userSockets.forEach((userSocket) => {
       userSocket.socketId.forEach(socketId => {
-        io.to(socketId).emit("reservationDeleted", { reservationId: reservationId });
+        io.to(socketId).emit("reservationDeleted", {
+          reservationId,
+          deletedReservation: {
+            name: reservation.name,
+            surname: reservation.surname,
+            room: reservation.room
+          }
+        });
       });
     });
 
-    // Actualizar totales de pagos
-    await updateAndEmitPaymentMethodTotals(userId);
+    // Enviar notificación a Telegram
+    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
+      `🏨 *KinHotel - Reserva Eliminada*\n
+      👤 *Huésped:* ${reservation.name} ${reservation.surname}
+      🏷️ *Habitación:* ${reservation.room.join(', ')}
+      📅 *Fechas:* ${reservation.start} al ${reservation.end}
+      ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
+      { parse_mode: 'Markdown' }
+    );
 
     res.status(200).json({
       success: true,
@@ -595,6 +619,34 @@ app.use((req, res, next) => {
   console.log('Session ID:', req.sessionID);
   console.log('Session:', req.session);
   next();
+});
+
+app.get("/search-reservations", async (req, res) => {
+  try {
+    const { userId, searchTerm } = req.query;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuario no autorizado" });
+    }
+
+    const query = {
+      user: userId,
+      $or: [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { surname: { $regex: searchTerm, $options: 'i' } },
+        { dni: { $regex: searchTerm, $options: 'i' } }
+      ]
+    };
+
+    const reservations = await Reservation.find(query)
+      .sort({ start: -1 })
+      .limit(10);
+
+    res.status(200).json({ reservations });
+  } catch (error) {
+    console.error("Error searching reservations:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Start server

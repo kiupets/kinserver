@@ -13,7 +13,9 @@ const TIPOS_GASTO = [
     'AGUINALDO',
     'INSUMOS_DESAYUNO',
     'INSUMOS_LIMPIEZA',
-    'MANTENIMIENTO'
+    'MANTENIMIENTO',
+    'GASTOS_VARIOS',
+    'VACACIONES'
 ];
 
 const gananciasSchema = new mongoose.Schema({
@@ -62,23 +64,23 @@ const gananciasSchema = new mongoose.Schema({
         fecha: {
             type: Date,
             required: function () {
-                return this.tipo === 'HORAS_EXTRAS';
+                return this.tipo === 'HORAS_EXTRAS' || this.tipo === 'VACACIONES';
             }
         },
         turno: {
             type: String,
             enum: ['MAÑANA', 'TARDE', 'NOCHE'],
             required: function () {
-                return this.tipo === 'HORAS_EXTRAS';
+                return this.tipo === 'HORAS_EXTRAS' || this.tipo === 'VACACIONES';
             }
         },
         cantidadHoras: {
             type: Number,
             required: function () {
-                return this.tipo === 'HORAS_EXTRAS';
+                return this.tipo === 'HORAS_EXTRAS' || this.tipo === 'VACACIONES';
             },
             default: function () {
-                return this.tipo === 'HORAS_EXTRAS' ? 0 : undefined;
+                return (this.tipo === 'HORAS_EXTRAS' || this.tipo === 'VACACIONES') ? 0 : undefined;
             }
         },
         valorHora: {
@@ -127,12 +129,14 @@ const gananciasSchema = new mongoose.Schema({
     },
     cajaAnterior: {
         type: Number,
-        required: true
+        required: true,
+        default: 0
     },
     caja: {
         cajaAnterior: {
             type: Number,
-            required: true
+            required: true,
+            default: 0
         },
         ingresosEfectivo: {
             type: Number,

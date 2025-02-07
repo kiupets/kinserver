@@ -131,7 +131,8 @@ router.get('/export-detailed', async (req, res) => {
                     efectivo: 0,
                     tarjeta: 0,
                     transferencia: 0,
-                    total: 0
+                    total: 0,
+                    pendiente: 0
                 };
 
                 const recepcionistas = new Set();
@@ -145,31 +146,33 @@ router.get('/export-detailed', async (req, res) => {
                 // Procesar pagos
                 payments.forEach(payment => {
                     if (payment.method && payment.amount) {
-                        // Si es reserva de una noche entre meses y es el mes de inicio, usar monto completo
-                        // Si no, distribuir proporcionalmente
                         const amount = shouldUseFullAmount ? payment.amount : payment.amount * proportionFactor;
                         totals[payment.method] += amount;
-                        totals.total += amount;
-                        metodosPago.add(payment.method);
-                        if (payment.recepcionista) {
-                            recepcionistas.add(payment.recepcionista);
-                        }
                     }
                 });
 
-                // El monto pendiente sigue la misma lógica
-                let montoPendiente = 0;
-                if (startsInThisMonth) {
-                    montoPendiente = shouldUseFullAmount ?
-                        (reservation.montoPendiente || 0) :
-                        (reservation.montoPendiente || 0) * proportionFactor;
-                }
+                // Calcular el total como la suma de los métodos de pago
+                totals.total = totals.efectivo + totals.tarjeta + totals.transferencia;
+
+                // Calcular el monto pendiente
+                const pendienteAmount = shouldUseFullAmount ?
+                    (reservation.montoPendiente || 0) :
+                    (reservation.montoPendiente || 0) * proportionFactor;
+                totals.pendiente = pendienteAmount;
+
+                // Actualizar statsData una sola vez usando los totales de esta reserva
+                statsData.paymentMethodStats.efectivo += totals.efectivo;
+                statsData.paymentMethodStats.tarjeta += totals.tarjeta;
+                statsData.paymentMethodStats.transferencia += totals.transferencia;
+                statsData.paymentMethodStats.pendiente += pendienteAmount;
+                statsData.paymentMethodStats.total = statsData.paymentMethodStats.efectivo +
+                    statsData.paymentMethodStats.tarjeta +
+                    statsData.paymentMethodStats.transferencia;
 
                 // Actualizar estadísticas
                 statsData.totalReservations++;
                 statsData.totalGuests += reservation.numberOfGuests || 0;
                 statsData.totalNightlyRates += totals.total / totalNights;
-                statsData.paymentMethodStats.pendiente += montoPendiente;
 
                 if (metodosPago.size > 1) {
                     statsData.paymentMethodStats.mixedPayments++;
@@ -188,7 +191,7 @@ router.get('/export-detailed', async (req, res) => {
                 statsData.roomTypeStats[roomType].count++;
                 statsData.roomTypeStats[roomType].revenue += totals.total;
                 statsData.roomTypeStats[roomType].nights += nightsInMonth;
-                statsData.roomTypeStats[roomType].pendiente += montoPendiente;
+                statsData.roomTypeStats[roomType].pendiente += totals.pendiente;
 
                 // Actualizar estadísticas por recepcionista
                 recepcionistas.forEach(receptionist => {
@@ -212,16 +215,8 @@ router.get('/export-detailed', async (req, res) => {
                             stats.payments[method] += totals[method];
                         }
                     });
-                    stats.payments.pendiente += montoPendiente;
+                    stats.payments.pendiente += totals.pendiente;
                 });
-
-                // Actualizar estadísticas de pagos
-                Object.keys(totals).forEach(method => {
-                    if (method !== 'total') {
-                        statsData.paymentMethodStats[method] += totals[method];
-                    }
-                });
-                statsData.paymentMethodStats.total += totals.total;
 
                 // Agregar fila al Excel usando las fechas ajustadas
                 const row = worksheet.addRow({
@@ -235,12 +230,12 @@ router.get('/export-detailed', async (req, res) => {
                     nochesTotales: totalNights,
                     nochesEnMes: nightsInMonth,
                     huespedes: reservation.numberOfGuests,
-                    total: totals.total,
-                    pagoPorNoche: totals.total / totalNights,
+                    total: totals.total + totals.pendiente,  // Total incluye pendiente
+                    pagoPorNoche: (totals.total + totals.pendiente) / totalNights,
                     efectivo: totals.efectivo,
                     tarjeta: totals.tarjeta,
                     transferencia: totals.transferencia,
-                    pendiente: montoPendiente,
+                    pendiente: totals.pendiente,
                     metodosPago: Array.from(metodosPago).join(', '),
                     recepcionista: Array.from(recepcionistas).join(', ')
                 });
@@ -253,13 +248,20 @@ router.get('/export-detailed', async (req, res) => {
                     }
                 });
 
-                // Si hay un pendiente, resaltar la celda
-                if (montoPendiente > 0) {
+                // Si hay un pendiente, resaltar la celda y la fila completa
+                if (totals.pendiente > 0) {
                     row.getCell('pendiente').fill = {
                         type: 'pattern',
                         pattern: 'solid',
                         fgColor: { argb: 'FFFF9E9E' }
                     };
+                    row.eachCell({ includeEmpty: true }, cell => {
+                        cell.fill = {
+                            type: 'pattern',
+                            pattern: 'solid',
+                            fgColor: { argb: 'FFFCE4EC' }  // Color rosa claro para toda la fila
+                        };
+                    });
                 }
 
                 // Aplicar estilo según condiciones

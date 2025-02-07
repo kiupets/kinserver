@@ -1,10 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const Ganancias = require('../models/Ganancias');
+const GananciasBackup = require('../models/GananciasBackup');
 const calcularOcupacionMensual = require('../utils/occupancyCalculator');
 const moment = require('moment');
 const mongoose = require('mongoose');
 const Reservation = require('../models/Reservation');
+
+// Función para limpiar backups antiguos
+async function cleanOldBackups(userId, month, year, keepCount = 5) {
+    try {
+        const backups = await GananciasBackup.find({ userId, month, year })
+            .sort({ createdAt: -1 })
+            .skip(keepCount);
+
+        if (backups.length > 0) {
+            await GananciasBackup.deleteMany({
+                _id: { $in: backups.map(b => b._id) }
+            });
+        }
+    } catch (error) {
+        console.error('Error limpiando backups antiguos:', error);
+    }
+}
 
 router.post('/save-ganancias/:userId', async (req, res) => {
     try {
@@ -31,6 +49,20 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             return res.status(400).json({
                 message: "Mes y año son requeridos."
             });
+        }
+
+        // Crear backup de los datos existentes
+        const existingData = await Ganancias.findOne({ userId, month, year });
+        if (existingData) {
+            await GananciasBackup.create({
+                originalId: existingData._id,
+                userId,
+                month,
+                year,
+                data: existingData.toObject()
+            });
+            // Limpiar backups antiguos
+            await cleanOldBackups(userId, month, year);
         }
 
         // Calcular fechas de inicio y fin del mes
@@ -174,9 +206,11 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                     if (payment.method && payment.amount) {
                         const amount = shouldUseFullAmount ? payment.amount : payment.amount * proportionFactor;
                         totals[payment.method] += amount;
-                        totals.total += amount;
                     }
                 });
+
+                // Calcular el total como la suma de los métodos de pago
+                totals.total = totals.efectivo + totals.tarjeta + totals.transferencia;
 
                 // Calcular monto pendiente
                 if (startsInThisMonth) {
@@ -333,9 +367,11 @@ router.get('/get-ganancias/:userId', async (req, res) => {
                     if (payment.method && payment.amount) {
                         const amount = shouldUseFullAmount ? payment.amount : payment.amount * proportionFactor;
                         totals[payment.method] += amount;
-                        totals.total += amount;
                     }
                 });
+
+                // Calcular el total como la suma de los métodos de pago
+                totals.total = totals.efectivo + totals.tarjeta + totals.transferencia;
 
                 // Calcular monto pendiente
                 if (startsInThisMonth) {

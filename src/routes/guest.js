@@ -19,11 +19,16 @@ router.get("/", validateUserId, async (req, res) => {
 
     try {
         const query = { user: userId };
-        if (name) query.name = { $regex: name, $options: 'i' };
-        if (surname) query.surname = { $regex: surname, $options: 'i' };
-        if (phone) query.phone = { $regex: phone, $options: 'i' };
-        if (email) query.email = { $regex: email, $options: 'i' };
-        if (dni) query.dni = { $regex: dni, $options: 'i' };
+
+        // Si hay un término de búsqueda, buscar en múltiples campos
+        if (name || surname || dni) {
+            const searchTerm = name || surname || dni;
+            query.$or = [
+                { name: { $regex: searchTerm, $options: 'i' } },
+                { surname: { $regex: searchTerm, $options: 'i' } },
+                { dni: { $regex: searchTerm, $options: 'i' } }
+            ];
+        }
 
         // Búsqueda en la colección Guest
         const guestsFromGuestCollection = await Guest.find(query)
@@ -33,17 +38,29 @@ router.get("/", validateUserId, async (req, res) => {
 
         // Búsqueda en la colección Reservation
         const guestsFromReservations = await Reservation.find(query)
-            .select('name surname phone email dni createdAt')
+            .select('name surname phone email dni createdAt start end room billingStatus')
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
 
-        // Combinar resultados y eliminar duplicados por DNI
+        // Combinar resultados y eliminar duplicados por DNI, manteniendo los datos de reserva
         const combinedGuests = [...guestsFromGuestCollection, ...guestsFromReservations];
         const uniqueGuests = Array.from(
             combinedGuests.reduce((map, guest) => {
                 if (!map.has(guest.dni)) {
                     map.set(guest.dni, guest);
+                } else {
+                    // Si ya existe, mantener los datos de reserva si están presentes
+                    const existingGuest = map.get(guest.dni);
+                    if (guest.start && guest.end && guest.room) {
+                        map.set(guest.dni, {
+                            ...existingGuest,
+                            start: guest.start,
+                            end: guest.end,
+                            room: guest.room,
+                            billingStatus: guest.billingStatus
+                        });
+                    }
                 }
                 return map;
             }, new Map()).values()
