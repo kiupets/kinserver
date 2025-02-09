@@ -27,6 +27,7 @@ const Reservation = require("./src/models/Reservation");
 const User = require("./src/models/User");
 const bcrypt = require("bcrypt");
 const app = express();
+if (process.env.NODE_ENV === 'production') { app.set('trust proxy', 1); }
 const server = http.createServer(app);
 const drinkRoutes = require('./src/routes/drinks');
 const paymentTotalsRoutes = require('./src/routes/paymentTotals');
