@@ -42,6 +42,7 @@ const gananciasAnalisis = require('./src/routes/gananciasAnalisis');
 const financialReportRoutes = require('./src/routes/financialReport');
 const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const ingresosAuth = require('./src/routes/ingresosAuth');
 
 // Variables globales
 const connectedUsers = [];
@@ -138,6 +139,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/auth', authRoutes);
+app.use('/auth', ingresosAuth);
 app.use("/excel", excelExportRoutes);
 app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
