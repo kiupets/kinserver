@@ -60,19 +60,37 @@ if (reserva.payments && Array.isArray(reserva.payments)) {
             console.log(`  (Mes inicio: ${monthStart.format('DD/MM/YYYY')}, Mes fin: ${monthEnd.format('DD/MM/YYYY')})`);
 
             if (shouldCountPayment) {
-                const amount = payment.amount;
-                totals[payment.method] = (totals[payment.method] || 0) + amount;
-                totals.total += amount;
-                totalReserva += amount;
-                metodosPago.add(payment.method);
-                if (payment.recepcionista) {
-                    recepcionistas.add(payment.recepcionista);
+                // Si el método es "pendiente", asegurar sumar solo una vez.
+                if (payment.method === 'pendiente') {
+                    if (!payment.__counted) { // Solo se suma si no se ha marcado
+                        totals[payment.method] = (totals[payment.method] || 0) + payment.amount;
+                        totals.total += payment.amount;
+                        totalReserva += payment.amount;
+                        // Marcar para evitar duplicación en próximas iteraciones
+                        payment.__counted = true;
+                        debugSheet.addRow({
+                            reserva: '→ CONTABILIZADO - pendiente',
+                            info: `Suma al método ${payment.method}: ${payment.amount} - Total del método hasta ahora: ${totals[payment.method]}`
+                        });
+                        console.log('  → PAGO PENDIENTE CONTABILIZADO ✓');
+                    } else {
+                        debugSheet.addRow({
+                            reserva: '→ OMITIDO',
+                            info: 'Pago pendiente ya contabilizado'
+                        });
+                        console.log('  → Pago pendiente ya contabilizado, se omite');
+                    }
+                } else {
+                    // Para pagos que no sean "pendiente", sumar normalmente.
+                    totals[payment.method] = (totals[payment.method] || 0) + payment.amount;
+                    totals.total += payment.amount;
+                    totalReserva += payment.amount;
+                    debugSheet.addRow({
+                        reserva: '→ CONTABILIZADO',
+                        info: `Suma al método ${payment.method}: ${payment.amount} - Total del método hasta ahora: ${totals[payment.method]}`
+                    });
+                    console.log('  → PAGO CONTABILIZADO ✓');
                 }
-                debugSheet.addRow({
-                    reserva: '→ CONTABILIZADO',
-                    info: `Suma al método ${payment.method}: ${amount} - Total del método hasta ahora: ${totals[payment.method]}`
-                });
-                console.log('  → PAGO CONTABILIZADO ✓');
             } else {
                 debugSheet.addRow({
                     reserva: '→ NO CONTABILIZADO',

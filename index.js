@@ -43,6 +43,7 @@ const financialReportRoutes = require('./src/routes/financialReport');
 const TelegramBot = require('node-telegram-bot-api');
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const ingresosAuth = require('./src/routes/ingresosAuth');
+const gananciasAuth = require('./src/routes/gananciasAuth');
 
 // Variables globales
 const connectedUsers = [];
@@ -140,13 +141,13 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use('/auth', ingresosAuth);
+app.use('/auth', gananciasAuth);
 app.use("/excel", excelExportRoutes);
 app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes);
 app.use('/', gananciasSaveRouter);
 app.use('/excel', gananciasExportRouter);
-app.use('/ganancias', gananciasExportRouter);
 app.use('/ganancias', gananciasSaveRouter);
 app.use('/ganancias', gananciasBackup);
 app.use('/ganancias', gananciasAnalisis);
@@ -391,12 +392,13 @@ async function updateAndEmitPaymentMethodTotals(userId) {
   });
 }
 
-// Serve static files - Move this AFTER all API routes
+// ---------------------------
+// A partir de aquí se sirven los archivos estáticos
+// ---------------------------
 app.use(express.static(path.join(__dirname, 'build')));
 
-// Catchall handler - This should be the LAST route
-app.get('*', (req, res) => {
-  console.log('Fallback to index.html for path:', req.path);
+// Catch-all para la SPA: si ninguna ruta coincide, se envía index.html
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
@@ -517,10 +519,7 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     // Enviar notificación a Telegram
     await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
       `🏨 *KinHotel - Reserva Eliminada*\n
-      👤 *Huésped:* ${reservation.name} ${reservation.surname}
-      🏷️ *Habitación:* ${reservation.room.join(', ')}
-      📅 *Fechas:* ${reservation.start} al ${reservation.end}
-      ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
+      👤 *Huésped:* ${reservation.name} ${reservation.surname}\n      🏷️ *Habitación:* ${reservation.room.join(', ')}\n      📅 *Fechas:* ${reservation.start} al ${reservation.end}\n      ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
       { parse_mode: 'Markdown' }
     );
 
