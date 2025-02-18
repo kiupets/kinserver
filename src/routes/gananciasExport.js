@@ -6,10 +6,13 @@ const Reservation = require('../models/Reservation');
 const calcularOcupacionMensual = require('../utils/occupancyCalculator')
 const Ganancias = require('../models/Ganancias');
 const mongoose = require('mongoose');
+const { authMiddleware } = require('../middleware/authMiddleware');
 
 // Definir tipos de gastos ordenados y categorías
 const tiposGastoOrdenados = [
     'SUELDOS',
+    'PRESENTISMO',
+    'PREMIOS',
     'AGUINALDO',
     'HORAS_EXTRAS',
     'VACACIONES',
@@ -39,18 +42,123 @@ const getNombreMes = (mes) => {
     return meses[parseInt(mes) - 1];
 };
 
-// Endpoint para exportar el reporte de ganancias
-router.post('/export-ganancias', async (req, res) => {
-    console.log('\n================== INICIO EXPORTACIÓN GANANCIAS ==================');
-    console.log('Datos recibidos:', {
-        month: req.body.selectedMonth,
-        year: req.body.selectedYear,
-        userId: req.body.userId,
-        financialReport: req.body.financialReport ? 'presente' : 'ausente'
-    });
+function obtenerMonto(monto) {
+    if (monto && typeof monto === 'object') {
+        return Number(monto.$numberInt || monto.$numberDouble || 0);
+    }
+    return Number(monto) || 0;
+}
 
+// Endpoint para exportar el reporte de ganancias
+router.post('/export-ganancias', authMiddleware, async (req, res) => {
+    console.log('\n================== INICIO EXPORTACIÓN GANANCIAS ==================');
     try {
-        const { ingresos, gastosOrdinarios, gastosExtraordinarios, selectedMonth, selectedYear, userId, cajaAnterior, financialReport } = req.body;
+        const { ingresos, gastosOrdinarios, gastosExtraordinarios, entradas = [], selectedMonth, selectedYear, userId, cajaAnterior, financialReport } = req.body;
+
+        // Log detallado de los datos recibidos
+        console.log('\n=== DATOS RECIBIDOS EN EL SERVIDOR ===');
+        console.log('Ingresos:', {
+            total: ingresos?.length,
+            detalles: ingresos?.map(i => ({
+                subcategoria: i.subcategoria,
+                monto: parseFloat(i.monto)
+            }))
+        });
+        console.log('Entradas:', {
+            total: entradas?.length,
+            detalles: entradas?.map(e => ({
+                concepto: e.concepto,
+                monto: parseFloat(e.monto),
+                metodoPago: e.metodoPago
+            }))
+        });
+        console.log('Caja Anterior:', parseFloat(cajaAnterior));
+        console.log('Mes y Año:', `${selectedMonth}/${selectedYear}`);
+
+        // Calcular totales al recibir
+        const ingresosEfectivoRecibido = ingresos
+            ?.filter(i => i.subcategoria === 'Efectivo')
+            .reduce((sum, i) => sum + (parseFloat(i.monto) || 0), 0) || 0;
+
+        const entradasEfectivoRecibido = entradas
+            .filter(e => e.concepto && e.concepto.toUpperCase().includes("ADMINISTR"))
+            .reduce((sum, e) => sum + obtenerMonto(e.monto), 0);
+
+        const gastosEfectivoRecibido = gastosOrdinarios
+            ?.filter(g => g.metodoPago === 'EFECTIVO')
+            .reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0) || 0;
+
+        console.log('\nTotales calculados al recibir:', {
+            saldoFinalCaja: parseFloat(cajaAnterior) + entradasEfectivoRecibido - gastosEfectivoRecibido
+        });
+
+        // Calcular todos los totales necesarios al inicio
+        const totales = {
+            ingresosEfectivo: Number(
+                ingresos
+                    .filter(i => i.subcategoria === 'Efectivo')
+                    .reduce((sum, i) => sum + (parseFloat(i.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            ingresosTarjeta: Number(
+                ingresos
+                    .filter(i => i.subcategoria === 'Tarjeta')
+                    .reduce((sum, i) => sum + (parseFloat(i.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            ingresosTransferencia: Number(
+                ingresos
+                    .filter(i => i.subcategoria === 'Transferencia')
+                    .reduce((sum, i) => sum + (parseFloat(i.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            entradasEfectivo: Number(
+                entradas
+                    .filter(e => e.metodoPago === 'EFECTIVO')
+                    .reduce((sum, e) => sum + obtenerMonto(e.monto), 0)
+                    .toFixed(2)
+            ),
+            entradasTarjeta: Number(
+                entradas
+                    .filter(e => e.metodoPago === 'TARJETA')
+                    .reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            entradasTransferencia: Number(
+                entradas
+                    .filter(e => e.metodoPago && e.metodoPago.toUpperCase() === 'TRANSFERENCIA')
+                    .reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            gastosEfectivo: Number(
+                gastosOrdinarios
+                    .filter(g => g.metodoPago === 'EFECTIVO')
+                    .reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0)
+                    .toFixed(2)
+            ),
+            cajaAnterior: Number(parseFloat(cajaAnterior || 0).toFixed(2))
+        };
+
+        console.log('\nTotales calculados para el Excel:', totales);
+
+        // Calcular saldo final de caja incluyendo todas las entradas administrativas
+        const totalEntradasAdmin = totales.entradasEfectivo + totales.entradasTarjeta + totales.entradasTransferencia;
+
+        totales.saldoFinalCaja = Number(
+            (totales.cajaAnterior + totales.ingresosEfectivo + totalEntradasAdmin - totales.gastosEfectivo).toFixed(2)
+        );
+
+        // Calcular ingresos totales incluyendo entradas
+        totales.ingresosTotales = Number(
+            (totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia +
+                totales.entradasEfectivo + totales.entradasTarjeta + totales.entradasTransferencia).toFixed(2)
+        );
+
+        console.log('\nSaldos finales calculados:', {
+            saldoFinalCaja: totales.saldoFinalCaja,
+            ingresosTotales: totales.ingresosTotales,
+            entradasEfectivo: totales.entradasEfectivo
+        });
 
         // 1. Inicializar el workbook
         const workbook = new ExcelJS.Workbook();
@@ -223,9 +331,8 @@ router.post('/export-ganancias', async (req, res) => {
         const saldoFinal = Number((cajaAnteriorNum + ingresosEfectivoNum - gastosOrdinariosEfectivoNum).toFixed(2));
         console.log('Saldo Final calculado:', saldoFinal);
 
-        const totalIngresosFE = Number((ingresosEfectivoNum + ingresosTarjetaNum + ingresosTransferenciaNum).toFixed(2));
         const totalEgresos = totalGastosOrd + totalGastosExt;
-        const resultadoNetoFE = totalIngresosFE - totalEgresos;
+        const resultadoNetoFE = totales.ingresosTotales - totalEgresos;
 
         // Add dynamic grouping for gastos ordinarios
         const gruposGastosOrdinarios = Array.from(new Set(gastosOrdinarios.map(gasto => (gasto.tipo || gasto.categoria))));
@@ -233,105 +340,64 @@ router.post('/export-ganancias', async (req, res) => {
         // Justo antes de la definición de 'datosResumen' en la hoja 'Resumen Financiero', agregar:
         const pendientesSinProcesar = reservaciones.reduce((sum, reserva) => sum + ((reserva.payments || []).reduce((s, pago) => s + (parseFloat(pago.montoPendiente) || 0), 0)), 0);
 
+        // Calcular totales para la caja
+        const entradasEfectivo = entradas
+            .filter(e => e.concepto && e.concepto.toUpperCase().includes("ADMINISTR"))
+            .reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
+        const gastosEfectivo = gastosOrdinarios
+            .filter(g => g.metodoPago === 'EFECTIVO')
+            .reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+
+        const saldoFinalCaja = parseFloat(cajaAnterior) + entradasEfectivo - gastosEfectivo;
+
         // 4. Crear la hoja de Caja
         const cajaSheet = workbook.addWorksheet('Caja');
         cajaSheet.columns = [
-            { header: '', key: 'concepto', width: 30 },
-            { header: '', key: 'monto', width: 20, style: { numFmt: '"$"#,##0.00' } }
+            { header: 'Concepto', key: 'concepto', width: 40 },
+            { header: 'Monto', key: 'monto', width: 20 }
         ];
 
-        // 5. Agregar título a la hoja de Caja
-        const titleRowCaja = cajaSheet.addRow([tituloReporte]);
-        cajaSheet.mergeCells('A1:B1');
-        titleRowCaja.font = { bold: true, size: 14 };
-        titleRowCaja.alignment = { horizontal: 'center' };
-        titleRowCaja.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFE3F2FD' }
-        };
-
-        // 6. Agregar headers
-        const headerRowCaja = cajaSheet.addRow(['Concepto', 'Monto']);
-        headerRowCaja.font = { bold: true, color: { argb: 'FFFFFF' } };
-        headerRowCaja.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FF4167B1' }
-        };
-
-        cajaSheet.addRow(['', '']); // Espacio después del header
-
-        // 7. Definir las filas de caja con valores verificados
+        // Configurar filas de caja
         const filasCaja = [
-            { concepto: 'CAJA', monto: null },
-            { concepto: 'Caja del mes anterior', monto: cajaAnteriorNum },
-            { concepto: 'Ingresos en Efectivo', monto: ingresosEfectivoNum },
-            { concepto: 'Gastos Ordinarios en Efectivo', monto: -gastosOrdinariosEfectivoNum },
-            { concepto: '', monto: null },
-            { concepto: 'Saldo Final de Caja', monto: saldoFinal },
-            { concepto: '', monto: null },
-            { concepto: 'RESULTADO OPERATIVO', monto: null },
-            { concepto: 'Ingresos Totales', monto: totalIngresosFE },
-            { concepto: 'Gastos Ordinarios', monto: -totalGastosOrd },
-            { concepto: 'Gastos Extraordinarios', monto: -totalGastosExt },
-            { concepto: '', monto: null },
-            { concepto: 'Resultado antes de Impuestos', monto: resultadoNetoFE }
+            ['CAJA', ''],
+            ['', ''],
+            ['Saldo del mes anterior', totales.cajaAnterior],
+            ['Ingresos en Efectivo', totales.ingresosEfectivo],
+            ['Entradas por Administración', totalEntradasAdmin],
+            ['Gastos en Efectivo', -totales.gastosEfectivo],
+            ['Saldo Final de Caja', totales.saldoFinalCaja]
         ];
 
-        // 8. Agregar filas y aplicar estilos
-        filasCaja.forEach((fila) => {
-            let row;
+        // Agregar filas a la hoja
+        filasCaja.forEach((fila, index) => {
+            const row = cajaSheet.addRow(fila);
 
-            if (fila.concepto === 'Saldo Final de Caja') {
-                // Manejar específicamente el Saldo Final de Caja
-                row = cajaSheet.addRow([fila.concepto, saldoFinal]);
-                const montoCell = row.getCell(2);
-                montoCell.value = saldoFinal;
-                montoCell.numFmt = '"$"#,##0.00';
+            // Aplicar estilos según la fila
+            if (index === 0) {
+                // Título
+                row.font = { bold: true, size: 14 };
+                row.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE2EFDA' }
+                };
+            } else if (index === 1) {
+                // Espacio en blanco
+                row.font = { bold: true };
+            } else if (index === 6) {
+                // Saldo Final
                 row.font = { bold: true };
                 row.fill = {
                     type: 'pattern',
                     pattern: 'solid',
-                    fgColor: { argb: 'FFD1C4E9' }
-                };
-            } else {
-                // Manejar el resto de las filas normalmente
-                row = cajaSheet.addRow([
-                    fila.concepto,
-                    fila.monto !== null ? fila.monto : ''
-                ]);
-                const montoCell = row.getCell(2);
-                if (fila.monto !== null) {
-                    montoCell.numFmt = '"$"#,##0.00';
-                }
-            }
-
-            // Estilo para títulos de sección
-            if (fila.concepto === 'CAJA' || fila.concepto === 'RESULTADO OPERATIVO') {
-                row.font = { bold: true };
-                row.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FF4167B1' }
-                };
-                row.getCell(1).font = { bold: true, color: { argb: 'FFFFFF' } };
-                row.getCell(2).font = { bold: true, color: { argb: 'FFFFFF' } };
-            }
-
-            // Estilo para el resultado antes de impuestos
-            if (fila.concepto === 'Resultado antes de Impuestos') {
-                row.font = { bold: true };
-                row.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: resultadoNetoFE >= 0 ? 'FFE8F5E9' : 'FFFFEBEE' }
+                    fgColor: { argb: 'FFE2EFDA' }
                 };
             }
 
-            // Alinear las celdas
-            row.getCell(1).alignment = { horizontal: 'left' };
-            row.getCell(2).alignment = { horizontal: 'right' };
+            // Aplicar formato de número a la columna de montos (excepto para las filas de título y espacio)
+            if (index > 1) {
+                row.getCell(2).numFmt = '#,##0.00';
+            }
         });
 
         // 9. Agregar detalles de gastos en efectivo
@@ -403,33 +469,47 @@ router.post('/export-ganancias', async (req, res) => {
         // Ajustar el formato de los números para asegurar que se muestren correctamente
         const datosResumen = [
             { categoria: 'INGRESOS' },
-            { categoria: '', subcategoria: 'Efectivo', monto: parseFloat(ingresosEfectivoNum), porcentaje: ((ingresosEfectivoNum / totalIngresosFE) * 100).toFixed(2) },
-            { categoria: '', subcategoria: 'Tarjeta', monto: parseFloat(ingresosTarjetaNum), porcentaje: ((ingresosTarjetaNum / totalIngresosFE) * 100).toFixed(2) },
-            { categoria: '', subcategoria: 'Transferencia', monto: parseFloat(ingresosTransferenciaNum), porcentaje: ((ingresosTransferenciaNum / totalIngresosFE) * 100).toFixed(2) },
-            { categoria: '', subcategoria: 'Total', monto: parseFloat(totalIngresosFE), porcentaje: '100.00' },
+            { categoria: '', subcategoria: 'Efectivo', monto: totales.ingresosEfectivo, porcentaje: ((totales.ingresosEfectivo / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Tarjeta', monto: totales.ingresosTarjeta, porcentaje: ((totales.ingresosTarjeta / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Transferencia', monto: totales.ingresosTransferencia, porcentaje: ((totales.ingresosTransferencia / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Total Ingresos', monto: totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia, porcentaje: null },
+            { categoria: '' },  // Línea en blanco
+            { categoria: 'ENTRADAS ADMINISTRATIVAS' },
+            { categoria: '', subcategoria: 'Efectivo', monto: totales.entradasEfectivo, porcentaje: ((totales.entradasEfectivo / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Tarjeta', monto: totales.entradasTarjeta, porcentaje: ((totales.entradasTarjeta / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Transferencia', monto: totales.entradasTransferencia, porcentaje: ((totales.entradasTransferencia / totales.ingresosTotales) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Total Entradas', monto: totalEntradasAdmin, porcentaje: null },
+            { categoria: '' },  // Línea en blanco
+            { categoria: 'CAJA' },
+            { categoria: '', subcategoria: 'Saldo del mes anterior', monto: totales.cajaAnterior, porcentaje: null },
+            { categoria: '', subcategoria: 'Ingresos en Efectivo', monto: totales.ingresosEfectivo, porcentaje: null },
+            { categoria: '', subcategoria: 'Entradas por Administración', monto: totalEntradasAdmin, porcentaje: null },
+            { categoria: '', subcategoria: 'Gastos en Efectivo', monto: -totales.gastosEfectivo, porcentaje: null },
+            { categoria: '', subcategoria: 'Saldo Final de Caja', monto: totales.saldoFinalCaja, porcentaje: null },
             { categoria: '' },  // Línea en blanco
             { categoria: 'PENDIENTES DE RESERVAS' },
-            { categoria: '', subcategoria: 'Total Pendiente', monto: parseFloat(pendientesSinProcesar), porcentaje: ((pendientesSinProcesar / totalIngresosFE) * 100).toFixed(2) },
+            { categoria: '', subcategoria: 'Total Pendiente', monto: pendientesSinProcesar, porcentaje: ((pendientesSinProcesar / (totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia)) * 100).toFixed(2) },
             { categoria: '' },  // Línea en blanco
             { categoria: 'FACTURACIÓN TOTAL' },
-            { categoria: '', subcategoria: 'Total Facturado', monto: parseFloat(totalIngresosFE), porcentaje: '100.00' },
+            { categoria: '', subcategoria: 'Total Facturado', monto: totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia, porcentaje: '100.00' },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null },
             { categoria: 'GASTOS ORDINARIOS', subcategoria: '', monto: null, porcentaje: null },
-            ...gruposGastosOrdinarios.map(tipo => {
+            ...tiposGastoOrdenados.map(tipo => {
                 const gastosDelTipo = gastosOrdinarios.filter(g => (g.tipo || g.categoria) === tipo);
                 const subtotal = gastosDelTipo.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+                const totalFacturacion = totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia;
                 return {
                     categoria: '',
                     subcategoria: tipo,
                     monto: subtotal,
-                    porcentaje: ((subtotal / totalIngresosFE) * 100).toFixed(2)
+                    porcentaje: ((subtotal / totalFacturacion) * 100).toFixed(2)
                 };
-            }),
+            }).filter(item => item.monto > 0),
             {
                 categoria: 'GASTOS ORDINARIOS',
                 subcategoria: 'Total',
                 monto: totalGastosOrd,
-                porcentaje: ((totalGastosOrd / totalIngresosFE) * 100).toFixed(2)
+                porcentaje: ((totalGastosOrd / (totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia)) * 100).toFixed(2)
             },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null },
             { categoria: 'DETALLE GASTOS ORDINARIOS', subcategoria: '', monto: null, porcentaje: null },
@@ -454,7 +534,7 @@ router.post('/export-ganancias', async (req, res) => {
                 porcentaje: ((totalGastosExt / totalGastosExt) * 100).toFixed(2)
             },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null },
-            { categoria: 'RESULTADO', subcategoria: 'NETO', monto: resultadoNetoFE, porcentaje: ((resultadoNetoFE / totalIngresosFE) * 100).toFixed(2) },
+            { categoria: 'RESULTADO', subcategoria: 'NETO', monto: resultadoNetoFE, porcentaje: ((resultadoNetoFE / (totales.ingresosEfectivo + totales.ingresosTarjeta + totales.ingresosTransferencia)) * 100).toFixed(2) },
             { categoria: '', subcategoria: '', monto: null, porcentaje: null }
         ];
 
@@ -788,16 +868,34 @@ router.post('/export-ganancias', async (req, res) => {
         });
 
         // Agregar gastos extraordinarios
+        console.log('Procesando gastos extraordinarios:', gastosExtraordinarios.length);
         gastosExtraordinarios.forEach(gasto => {
             detalleGastosSheet.addRow({
                 tipo: 'Extraordinario',
-                categoria: gasto.categoria,
+                categoria: gasto.categoria || 'Sin categoría',
                 concepto: gasto.concepto,
                 fechaCompra: gasto.fechaCompra ? new Date(gasto.fechaCompra) : null,
-                monto: gasto.monto,
-                metodoPago: gasto.metodoPago || ''
+                monto: parseFloat(gasto.monto) || 0,
+                metodoPago: gasto.metodoPago
             });
         });
+
+        // Agregar una fila de total para gastos extraordinarios
+        const totalGastosExtraordinarios = gastosExtraordinarios.reduce((total, gasto) => total + (parseFloat(gasto.monto) || 0), 0);
+        const totalRowExtDetalles = detalleGastosSheet.addRow({
+            tipo: 'TOTAL GASTOS EXTRAORDINARIOS',
+            categoria: '',
+            concepto: '',
+            fechaCompra: null,
+            monto: totalGastosExtraordinarios,
+            metodoPago: ''
+        });
+        totalRowExtDetalles.font = { bold: true };
+        totalRowExtDetalles.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD1C4E9' }
+        };
 
         // Aplicar estilos a la tabla de detalle
         detalleGastosSheet.getRow(1).font = { bold: true };
@@ -858,7 +956,10 @@ router.post('/export-ganancias', async (req, res) => {
         ];
 
         // Agregar gastos ordinarios agrupados por tipo
-        gruposGastosOrdinarios.forEach(tipo => {
+        tiposGastoOrdenados.forEach(tipo => {
+            const gastosDelTipo = gastosOrdinarios.filter(g => (g.tipo || g.categoria) === tipo);
+            if (gastosDelTipo.length === 0) return; // Saltar tipos sin gastos
+
             const headerRow = gastosSheet.addRow([tipo, '', '', '', '', '', '', '', '', '']);
             headerRow.font = { bold: true };
             headerRow.fill = {
@@ -867,7 +968,6 @@ router.post('/export-ganancias', async (req, res) => {
                 fgColor: { argb: 'FFE3F2FD' }
             };
 
-            const gastosDelTipo = gastosOrdinarios.filter(g => (g.tipo || g.categoria) === tipo);
             gastosDelTipo.forEach(gasto => {
                 gastosSheet.addRow({
                     tipo: (gasto.tipo || gasto.categoria),
@@ -935,49 +1035,213 @@ router.post('/export-ganancias', async (req, res) => {
             fgColor: { argb: 'FFD1C4E9' }
         };
 
-        try {
-            const totalRowOrd = gastosSheet.addRow({
-                tipo: 'TOTAL GENERAL',
-                concepto: '',
-                fechaCompra: null,
-                fecha: null,
-                turno: '',
-                horas: '',
-                valorHora: '',
-                periodo: '',
-                monto: totalGastosOrd,
-                metodoPago: ''
-            });
-            totalRowOrd.font = { bold: true };
-            totalRowOrd.fill = {
+        // Hoja de Gastos Extraordinarios
+        const gastosExtSheet = workbook.addWorksheet('Gastos Extraordinarios');
+        gastosExtSheet.columns = [
+            { header: 'Categoría', key: 'categoria', width: 30 },
+            { header: 'Concepto', key: 'concepto', width: 40 },
+            { header: 'Fecha de Compra', key: 'fechaCompra', width: 15, style: { numFmt: 'dd/mm/yyyy' } },
+            { header: 'Monto', key: 'monto', width: 15 },
+            { header: 'Método de Pago', key: 'metodoPago', width: 15 }
+        ];
+
+        // Agregar título
+        const titleRowExt = gastosExtSheet.addRow([tituloReporte]);
+        gastosExtSheet.mergeCells('A1:E1');
+        titleRowExt.font = { bold: true, size: 14 };
+        titleRowExt.alignment = { horizontal: 'center' };
+        titleRowExt.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE3F2FD' }
+        };
+
+        gastosExtSheet.addRow([]); // Espacio después del título
+
+        // Agregar headers
+        const headerRowExt = gastosExtSheet.addRow(['Categoría', 'Concepto', 'Fecha de Compra', 'Monto', 'Método de Pago']);
+        headerRowExt.font = { bold: true };
+        headerRowExt.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4167B1' }
+        };
+        headerRowExt.font = { bold: true, color: { argb: 'FFFFFF' } };
+
+        // Agregar gastos extraordinarios agrupados por categoría
+        const categoriasSorted = Array.from(new Set(gastosExtraordinarios.map(g => g.categoria))).sort();
+
+        categoriasSorted.forEach(categoria => {
+            // Agregar header de categoría
+            const headerRow = gastosExtSheet.addRow([categoria, '', '', '', '']);
+            headerRow.font = { bold: true };
+            headerRow.fill = {
                 type: 'pattern',
                 pattern: 'solid',
-                fgColor: { argb: 'FFD1C4E9' }
+                fgColor: { argb: 'FFE3F2FD' }
             };
 
-            // ... resto del código ...
+            const gastosDeCategoria = gastosExtraordinarios.filter(g => g.categoria === categoria);
+            let subtotalCategoria = 0;
 
-            // Generar el archivo
-            const buffer = await workbook.xlsx.writeBuffer();
+            gastosDeCategoria.forEach(gasto => {
+                const montoNum = parseFloat(gasto.monto) || 0;
+                subtotalCategoria += montoNum;
 
-            // Configurar headers de respuesta
-            res.set({
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition': `attachment; filename=reporte-ganancias-${moment().format('YYYYMMDD')}.xlsx`,
-                'Content-Length': buffer.length
+                const row = gastosExtSheet.addRow([
+                    gasto.categoria,
+                    gasto.concepto,
+                    gasto.fechaCompra ? new Date(gasto.fechaCompra) : null,
+                    montoNum,
+                    gasto.metodoPago || ''
+                ]);
+
+                // Formato para el monto
+                const montoCell = row.getCell(4);
+                montoCell.numFmt = '"$"#,##0.00';
             });
 
-            // Enviar el archivo
-            console.log('Exportación completada exitosamente');
-            res.send(buffer);
+            // Agregar subtotal por categoría
+            const subtotalRow = gastosExtSheet.addRow([
+                `Subtotal ${categoria}`,
+                '',
+                '',
+                subtotalCategoria,
+                ''
+            ]);
+            subtotalRow.font = { bold: true };
+            subtotalRow.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE8EAF6' }
+            };
+            subtotalRow.getCell(4).numFmt = '"$"#,##0.00';
 
-        } catch (error) {
-            console.error('Error en la exportación:', error);
-            res.status(500).json({
-                message: "Error generando Excel",
-                error: error.message
+            gastosExtSheet.addRow([]); // Espacio después de cada categoría
+        });
+
+        // Agregar total general
+        const totalRowExtSheet = gastosExtSheet.addRow([
+            'TOTAL GASTOS EXTRAORDINARIOS',
+            '',
+            '',
+            totalGastosExt,
+            ''
+        ]);
+        totalRowExtSheet.font = { bold: true };
+        totalRowExtSheet.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD1C4E9' }
+        };
+        totalRowExtSheet.getCell(4).numFmt = '"$"#,##0.00';
+
+        // Aplicar bordes a todas las celdas
+        gastosExtSheet.eachRow({ includeEmpty: false }, row => {
+            row.eachCell({ includeEmpty: false }, cell => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
             });
-        }
+        });
+
+        // Ajustar alineación de las columnas
+        gastosExtSheet.getColumn('monto').alignment = { horizontal: 'right' };
+        gastosExtSheet.getColumn('concepto').alignment = { wrapText: true };
+
+        // Nueva hoja: Entradas Por Administración
+        const entradasSheet = workbook.addWorksheet('Entradas Por Administración');
+        entradasSheet.columns = [
+            { header: 'Concepto', key: 'concepto', width: 40 },
+            { header: 'Descripción', key: 'descripcion', width: 40 },
+            { header: 'Fecha', key: 'fecha', width: 15, style: { numFmt: 'dd/mm/yyyy' } },
+            { header: 'Monto', key: 'monto', width: 15 },
+            { header: 'Método de Pago', key: 'metodoPago', width: 15 }
+        ];
+
+        // Aplicar estilos al header
+        entradasSheet.getRow(1).font = { bold: true };
+        entradasSheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE3F2FD' }
+        };
+
+        // Agregar entradas y asegurarse de que los montos sean números
+        let totalEntradas = 0;
+        console.log('Procesando entradas:', entradas);
+        entradas.forEach(entrada => {
+            const montoNum = parseFloat(entrada.monto) || 0;
+            totalEntradas += montoNum;
+
+            console.log('Agregando entrada:', {
+                concepto: entrada.concepto,
+                monto: montoNum,
+                metodoPago: entrada.metodoPago
+            });
+
+            const row = entradasSheet.addRow({
+                concepto: entrada.concepto,
+                descripcion: entrada.descripcion || '',
+                fecha: entrada.fecha ? new Date(entrada.fecha) : null,
+                monto: montoNum,
+                metodoPago: entrada.metodoPago
+            });
+
+            // Formato para el monto
+            const montoCell = row.getCell(4);
+            montoCell.numFmt = '"$"#,##0.00';
+        });
+
+        // Agregar total
+        const totalRowEntradas = entradasSheet.addRow({
+            concepto: 'TOTAL ENTRADAS',
+            descripcion: '',
+            fecha: null,
+            monto: totalEntradas,
+            metodoPago: ''
+        });
+        totalRowEntradas.font = { bold: true };
+        totalRowEntradas.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD1C4E9' }
+        };
+        totalRowEntradas.getCell(4).numFmt = '"$"#,##0.00';
+
+        // Aplicar bordes y alineación
+        entradasSheet.eachRow({ includeEmpty: false }, row => {
+            row.eachCell({ includeEmpty: false }, cell => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+        });
+
+        entradasSheet.getColumn('monto').alignment = { horizontal: 'right' };
+        entradasSheet.getColumn('concepto').alignment = { wrapText: true };
+        entradasSheet.getColumn('descripcion').alignment = { wrapText: true };
+
+        // Generar el archivo
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Configurar headers de respuesta
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename=reporte-ganancias-${moment().format('YYYYMMDD')}.xlsx`,
+            'Content-Length': buffer.length
+        });
+
+        // Enviar el archivo
+        console.log('Exportación completada exitosamente');
+        res.send(buffer);
+
     } catch (error) {
         console.error('Error en la exportación:', error);
         res.status(500).json({
@@ -987,7 +1251,7 @@ router.post('/export-ganancias', async (req, res) => {
     }
 });
 
-router.get('/financial-report/:userId/:month/:year', async (req, res) => {
+router.get('/financial-report/:userId/:month/:year', authMiddleware, async (req, res) => {
     try {
         const { userId, month, year } = req.params;
         const monthStart = moment([year, month - 1]).startOf('month');

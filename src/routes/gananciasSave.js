@@ -26,7 +26,7 @@ async function cleanOldBackups(userId, month, year, keepCount = 5) {
 
 router.post('/save-ganancias/:userId', async (req, res) => {
     try {
-        const { ingresos, gastosOrdinarios, gastosExtraordinarios, month, year, cajaAnterior } = req.body;
+        const { ingresos, gastosOrdinarios, gastosExtraordinarios, entradas, month, year, cajaAnterior } = req.body;
         const { userId } = req.params;
 
         console.log('Datos recibidos en save-ganancias:', {
@@ -35,6 +35,7 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             year,
             cajaAnterior,
             ingresosLength: ingresos?.length,
+            entradasLength: entradas?.length,
             gastosOrdinariosLength: gastosOrdinarios?.length,
             gastosExtraordinariosLength: gastosExtraordinarios?.length
         });
@@ -244,6 +245,7 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                         subcategoria: ingreso.subcategoria,
                         monto: ingreso.monto || 0
                     })),
+                    entradas: entradas || [],
                     gastosOrdinarios: gastosOrdinariosProcessed,
                     gastosExtraordinarios: gastosExtraordinariosProcessed || [],
                     occupancyRate: estadisticasOcupacion.porcentajeOcupacion,

@@ -35,6 +35,26 @@ const gananciasSchema = new mongoose.Schema({
         subcategoria: String,
         monto: Number
     }],
+    entradas: [{
+        concepto: {
+            type: String,
+            required: true
+        },
+        monto: {
+            type: Number,
+            required: true
+        },
+        metodoPago: {
+            type: String,
+            enum: ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA'],
+            required: true
+        },
+        fecha: {
+            type: Date,
+            required: true
+        },
+        descripcion: String
+    }],
     gastosOrdinarios: [{
         tipo: {
             type: String,
@@ -189,15 +209,19 @@ gananciasSchema.pre('save', function (next) {
     const ingresosEfectivo = this.ingresos
         .find(i => i.subcategoria === 'Efectivo')?.monto || 0;
 
+    const entradasEfectivo = this.entradas
+        .filter(e => e.metodoPago === 'EFECTIVO')
+        .reduce((sum, e) => sum + (e.monto || 0), 0);
+
     const gastosEfectivo = this.gastosOrdinarios
         .filter(g => g.metodoPago === 'EFECTIVO')
         .reduce((sum, g) => sum + (g.monto || 0), 0);
 
     this.caja = {
         cajaAnterior: this.cajaAnterior || 0,
-        ingresosEfectivo,
+        ingresosEfectivo: ingresosEfectivo + entradasEfectivo,
         gastosEfectivo,
-        saldoFinal: (this.cajaAnterior || 0) + ingresosEfectivo - gastosEfectivo
+        saldoFinal: (this.cajaAnterior || 0) + ingresosEfectivo + entradasEfectivo - gastosEfectivo
     };
 
     next();

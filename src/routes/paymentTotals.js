@@ -148,15 +148,6 @@ const calculateOccupancyStats = (reservations, startDate, endDate) => {
         const nightsInMonth = effectiveEnd.diff(effectiveStart, 'days');
         const crossesMonths = startDate.month() !== endDate.month();
 
-        console.log('Procesando reservación:', {
-            id: reservacion._id,
-            inicio: effectiveStart.format('YYYY-MM-DD'),
-            fin: effectiveEnd.format('YYYY-MM-DD'),
-            noches: nightsInMonth,
-            cruzaMeses: crossesMonths,
-            habitaciones: reservacion.room ? (Array.isArray(reservacion.room) ? reservacion.room.length : 1) : 1
-        });
-
         if (crossesMonths) {
             reservasCruzanMeses++;
             detallesReservasCruzadas.push({

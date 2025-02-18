@@ -5,14 +5,18 @@ const saveGanancias = async (req, res) => {
             ingresos,
             gastosOrdinarios,
             gastosExtraordinarios,
+            entradas,
             occupancyRate,
             month,
-            year
+            year,
+            cajaAnterior
         } = req.body;
 
         console.log('Datos recibidos:', {
             gastosOrdinarios,
-            gastosExtraordinarios
+            gastosExtraordinarios,
+            entradas,
+            cajaAnterior
         });
 
         const ganancias = await Ganancias.findOneAndUpdate(
@@ -25,6 +29,13 @@ const saveGanancias = async (req, res) => {
                 $set: {
                     fecha: new Date(year, parseInt(month) - 1),
                     ingresos,
+                    entradas: entradas.map(entrada => ({
+                        concepto: entrada.concepto,
+                        monto: parseFloat(entrada.monto) || 0,
+                        metodoPago: entrada.metodoPago || 'EFECTIVO',
+                        fecha: entrada.fecha || new Date(),
+                        descripcion: entrada.descripcion
+                    })),
                     gastosOrdinarios: gastosOrdinarios.map(gasto => ({
                         tipo: gasto.tipo,
                         concepto: gasto.concepto,
@@ -38,6 +49,7 @@ const saveGanancias = async (req, res) => {
                         metodoPago: gasto.metodoPago || 'EFECTIVO'
                     })),
                     occupancyRate,
+                    cajaAnterior: parseFloat(cajaAnterior) || 0,
                     userId
                 }
             },

@@ -147,7 +147,7 @@ app.use('/payment-totals', paymentTotalsRoutes);
 app.use('/drinks', drinkRoutes);
 app.use('/guests', guestRoutes);
 app.use('/', gananciasSaveRouter);
-app.use('/excel', gananciasExportRouter);
+app.use('/api/ganancias', gananciasExportRouter);
 app.use('/ganancias', gananciasSaveRouter);
 app.use('/ganancias', gananciasBackup);
 app.use('/ganancias', gananciasAnalisis);
