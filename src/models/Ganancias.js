@@ -118,6 +118,17 @@ const gananciasSchema = new mongoose.Schema({
             required: true
         }
     }],
+    entradas: [{
+        concepto: String,
+        monto: Number,
+        tipo: String,
+        metodoPago: {
+            type: String,
+            enum: ['EFECTIVO', 'TARJETA', 'TRANSFERENCIA'],
+            default: 'EFECTIVO'
+        },
+        fecha: Date
+    }],
     occupancyRate: {
         type: Number,
         default: 0
@@ -146,6 +157,10 @@ const gananciasSchema = new mongoose.Schema({
         gastosEfectivo: {
             type: Number,
             required: true,
+            default: 0
+        },
+        entradasEfectivo: {
+            type: Number,
             default: 0
         },
         saldoFinal: {
@@ -185,6 +200,14 @@ gananciasSchema.pre('save', function (next) {
         return gasto;
     });
 
+    // Asegurar que todos los gastos extraordinarios tengan metodoPago = 'TARJETA'
+    this.gastosExtraordinarios = this.gastosExtraordinarios.map(gasto => {
+        return {
+            ...gasto,
+            metodoPago: 'TARJETA' // Siempre establecer como TARJETA
+        };
+    });
+
     // Calcular valores de caja
     const ingresosEfectivo = this.ingresos
         .find(i => i.subcategoria === 'Efectivo')?.monto || 0;
@@ -193,11 +216,19 @@ gananciasSchema.pre('save', function (next) {
         .filter(g => g.metodoPago === 'EFECTIVO')
         .reduce((sum, g) => sum + (g.monto || 0), 0);
 
+    // Calcular entradas en efectivo
+    const entradasEfectivo = Array.isArray(this.entradas) ? 
+        this.entradas
+            .filter(entrada => entrada.metodoPago === 'EFECTIVO')
+            .reduce((sum, entrada) => sum + (Number(entrada.monto) || 0), 0) : 0;
+
+    // Los gastos extraordinarios ya no se incluyen en los cálculos de caja
     this.caja = {
         cajaAnterior: this.cajaAnterior || 0,
         ingresosEfectivo,
         gastosEfectivo,
-        saldoFinal: (this.cajaAnterior || 0) + ingresosEfectivo - gastosEfectivo
+        entradasEfectivo,
+        saldoFinal: (this.cajaAnterior || 0) + ingresosEfectivo + entradasEfectivo - gastosEfectivo
     };
 
     next();

@@ -9,6 +9,7 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             ingresos,
             gastosOrdinarios,
             gastosExtraordinarios,
+            entradas,
             occupancyRate,
             month,
             year
@@ -40,8 +41,13 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             const gastosEfectivoAnterior = registroAnterior.gastosOrdinarios
                 .filter(g => g.metodoPago === 'EFECTIVO')
                 .reduce((sum, g) => sum + (g.monto || 0), 0);
+                
+            const entradasEfectivoAnterior = Array.isArray(registroAnterior.entradas) ? 
+                registroAnterior.entradas
+                    .filter(entrada => entrada.metodoPago === 'EFECTIVO')
+                    .reduce((sum, entrada) => sum + (Number(entrada.monto) || 0), 0) : 0;
 
-            cajaAnterior = registroAnterior.cajaAnterior + ingresosEfectivoAnterior - gastosEfectivoAnterior;
+            cajaAnterior = registroAnterior.cajaAnterior + ingresosEfectivoAnterior + entradasEfectivoAnterior - gastosEfectivoAnterior;
         }
 
         // Buscar si ya existe un registro para ese mes y año
@@ -55,11 +61,21 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             // Actualizar registro existente
             ganancias.ingresos = ingresos;
             ganancias.gastosOrdinarios = gastosOrdinarios;
-            ganancias.gastosExtraordinarios = gastosExtraordinarios;
+            ganancias.gastosExtraordinarios = gastosExtraordinarios.map(gasto => ({
+                ...gasto,
+                metodoPago: 'TARJETA'
+            }));
+            ganancias.entradas = entradas || [];
             ganancias.occupancyRate = occupancyRate;
             ganancias.cajaAnterior = cajaAnterior;
             await ganancias.save();
         } else {
+            // Modify gastosExtraordinarios before creating new record
+            const processedGastosExtraordinarios = gastosExtraordinarios.map(gasto => ({
+                ...gasto,
+                metodoPago: 'TARJETA'
+            }));
+            
             // Crear nuevo registro
             ganancias = new Ganancias({
                 userId,
@@ -67,7 +83,8 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                 year,
                 ingresos,
                 gastosOrdinarios,
-                gastosExtraordinarios,
+                gastosExtraordinarios: processedGastosExtraordinarios,
+                entradas: entradas || [],
                 occupancyRate,
                 cajaAnterior
             });

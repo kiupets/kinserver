@@ -46,11 +46,54 @@ router.post('/export-ganancias', async (req, res) => {
         month: req.body.selectedMonth,
         year: req.body.selectedYear,
         userId: req.body.userId,
-        financialReport: req.body.financialReport ? 'presente' : 'ausente'
+        financialReport: req.body.financialReport ? 'presente' : 'ausente',
+        entradasLength: (req.body.entradas || []).length
     });
 
+    // Depurar los datos de ingresos y entradas
+    console.log('DEPURACIÓN DE INGRESOS:');
+    if (req.body.ingresos) {
+        console.log('Tipos de ingresos recibidos:');
+        const categoriasIngresos = {};
+        req.body.ingresos.forEach(ingreso => {
+            categoriasIngresos[ingreso.subcategoria] = (categoriasIngresos[ingreso.subcategoria] || 0) + 1;
+        });
+        console.log(categoriasIngresos);
+        
+        // Verificar si hay entradas en efectivo incorrectamente incluidas en ingresos
+        const entradasEnIngresos = req.body.ingresos.filter(i => 
+            i.subcategoria === 'Entradas en Efectivo' || 
+            i.concepto === 'Entradas en Efectivo' ||
+            i.descripcion?.includes('Entrada') ||
+            i.descripcion?.includes('entrada')
+        );
+        
+        if (entradasEnIngresos.length > 0) {
+            console.log('ADVERTENCIA: Se encontraron entradas administrativas en la sección de ingresos:');
+            console.log(entradasEnIngresos);
+            
+            // Filtrar las entradas incorrectas de los ingresos
+            req.body.ingresos = req.body.ingresos.filter(i => 
+                i.subcategoria !== 'Entradas en Efectivo' && 
+                i.concepto !== 'Entradas en Efectivo' &&
+                !i.descripcion?.includes('Entrada') &&
+                !i.descripcion?.includes('entrada')
+            );
+            
+            console.log('Ingresos corregidos:', req.body.ingresos.length);
+        }
+    }
+    
+    console.log('DEPURACIÓN DE ENTRADAS:');
+    if (req.body.entradas && Array.isArray(req.body.entradas)) {
+        console.log(`Total entradas: ${req.body.entradas.length}`);
+        req.body.entradas.forEach((entrada, i) => {
+            console.log(`Entrada ${i+1}: Método: ${entrada.metodoPago}, Monto: ${entrada.monto}`);
+        });
+    }
+
     try {
-        const { ingresos, gastosOrdinarios, gastosExtraordinarios, selectedMonth, selectedYear, userId, cajaAnterior, financialReport } = req.body;
+        const { ingresos, gastosOrdinarios, gastosExtraordinarios, entradas = [], selectedMonth, selectedYear, userId, cajaAnterior, financialReport } = req.body;
 
         // 1. Inicializar el workbook
         const workbook = new ExcelJS.Workbook();
@@ -206,6 +249,16 @@ router.post('/export-ganancias', async (req, res) => {
                 .toFixed(2)
         );
 
+        // Calcular entradas en efectivo
+        const entradasEfectivoNum = Number(
+            (Array.isArray(entradas) ? entradas : [])
+                .filter(entrada => entrada.metodoPago === 'EFECTIVO')
+                .reduce((sum, entrada) => sum + (parseFloat(entrada.monto) || 0), 0)
+                .toFixed(2)
+        );
+
+        console.log('Entradas en efectivo calculadas:', entradasEfectivoNum);
+
         const gastosOrdinariosEfectivoNum = Number(
             gastosOrdinarios
                 .filter(g => g.metodoPago === 'EFECTIVO')
@@ -217,13 +270,17 @@ router.post('/export-ganancias', async (req, res) => {
         console.log('Valores para saldo final:');
         console.log('Caja Anterior:', cajaAnteriorNum);
         console.log('Ingresos Efectivo:', ingresosEfectivoNum);
+        console.log('Entradas Efectivo:', entradasEfectivoNum);
         console.log('Gastos Ordinarios Efectivo:', gastosOrdinariosEfectivoNum);
 
-        // Calcular el saldo final (sin invertir el signo)
-        const saldoFinal = Number((cajaAnteriorNum + ingresosEfectivoNum - gastosOrdinariosEfectivoNum).toFixed(2));
+        // Calcular el saldo final incluyendo entradas en efectivo
+        const saldoFinal = Number((cajaAnteriorNum + ingresosEfectivoNum + entradasEfectivoNum - gastosOrdinariosEfectivoNum).toFixed(2));
         console.log('Saldo Final calculado:', saldoFinal);
 
+        // Asegurarnos de que totalIngresosFE no incluya entradasEfectivoNum
         const totalIngresosFE = Number((ingresosEfectivoNum + ingresosTarjetaNum + ingresosTransferenciaNum).toFixed(2));
+        console.log('Total Ingresos (sin entradas administrativas):', totalIngresosFE);
+        
         const totalEgresos = totalGastosOrd + totalGastosExt;
         const resultadoNetoFE = totalIngresosFE - totalEgresos;
 
@@ -267,8 +324,8 @@ router.post('/export-ganancias', async (req, res) => {
             { concepto: 'CAJA', monto: null },
             { concepto: 'Caja del mes anterior', monto: cajaAnteriorNum },
             { concepto: 'Ingresos en Efectivo', monto: ingresosEfectivoNum },
+            { concepto: 'Entradas Administrativas en Efectivo', monto: entradasEfectivoNum },
             { concepto: 'Gastos Ordinarios en Efectivo', monto: -gastosOrdinariosEfectivoNum },
-            { concepto: '', monto: null },
             { concepto: 'Saldo Final de Caja', monto: saldoFinal },
             { concepto: '', monto: null },
             { concepto: 'RESULTADO OPERATIVO', monto: null },
@@ -406,7 +463,10 @@ router.post('/export-ganancias', async (req, res) => {
             { categoria: '', subcategoria: 'Efectivo', monto: parseFloat(ingresosEfectivoNum), porcentaje: ((ingresosEfectivoNum / totalIngresosFE) * 100).toFixed(2) },
             { categoria: '', subcategoria: 'Tarjeta', monto: parseFloat(ingresosTarjetaNum), porcentaje: ((ingresosTarjetaNum / totalIngresosFE) * 100).toFixed(2) },
             { categoria: '', subcategoria: 'Transferencia', monto: parseFloat(ingresosTransferenciaNum), porcentaje: ((ingresosTransferenciaNum / totalIngresosFE) * 100).toFixed(2) },
-            { categoria: '', subcategoria: 'Total', monto: parseFloat(totalIngresosFE), porcentaje: '100.00' },
+            { categoria: '', subcategoria: 'Total', monto: totalIngresosFE, porcentaje: '100.00' },
+            { categoria: '' },  // Línea en blanco
+            { categoria: 'ENTRADAS ADMINISTRATIVAS' },
+            { categoria: '', subcategoria: 'Entradas en Efectivo', monto: parseFloat(entradasEfectivoNum), porcentaje: null },
             { categoria: '' },  // Línea en blanco
             { categoria: 'PENDIENTES DE RESERVAS' },
             { categoria: '', subcategoria: 'Total Pendiente', monto: parseFloat(pendientesSinProcesar), porcentaje: ((pendientesSinProcesar / totalIngresosFE) * 100).toFixed(2) },
@@ -468,6 +528,27 @@ router.post('/export-ganancias', async (req, res) => {
             }
         });
 
+        // Depurar estructura final de datosResumen
+        console.log('\nESTRUCTURA FINAL DE DATOS RESUMEN:');
+        const categoriasFinales = {};
+        datosResumen.forEach((item, index) => {
+            if (item.categoria) {
+                if (!categoriasFinales[item.categoria]) {
+                    categoriasFinales[item.categoria] = [];
+                }
+            }
+            if (item.subcategoria && item.monto) {
+                const ultimaCategoria = Object.keys(categoriasFinales).pop();
+                if (ultimaCategoria) {
+                    categoriasFinales[ultimaCategoria].push({
+                        subcategoria: item.subcategoria,
+                        monto: item.monto
+                    });
+                }
+            }
+        });
+        console.log(JSON.stringify(categoriasFinales, null, 2));
+
         // Agregar datos al resumen
         datosResumen.forEach((item, index) => {
             const row = resumenSheet.addRow(item);
@@ -493,6 +574,15 @@ router.post('/export-ganancias', async (req, res) => {
                     pattern: 'solid',
                     fgColor: { argb: 'FFE3F2FD' }
                 };
+                
+                // Color especial para ENTRADAS ADMINISTRATIVAS
+                if (item.categoria === 'ENTRADAS ADMINISTRATIVAS') {
+                    row.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFF9FBE7' }  // Color amarillo claro
+                    };
+                }
             }
 
             // Estilos para totales
@@ -935,49 +1025,94 @@ router.post('/export-ganancias', async (req, res) => {
             fgColor: { argb: 'FFD1C4E9' }
         };
 
-        try {
-            const totalRowOrd = gastosSheet.addRow({
-                tipo: 'TOTAL GENERAL',
-                concepto: '',
-                fechaCompra: null,
-                fecha: null,
-                turno: '',
-                horas: '',
-                valorHora: '',
-                periodo: '',
-                monto: totalGastosOrd,
-                metodoPago: ''
-            });
-            totalRowOrd.font = { bold: true };
-            totalRowOrd.fill = {
+        // Hoja: Gastos Extraordinarios
+        const gastosExtSheet = workbook.addWorksheet('Gastos Extraordinarios');
+        gastosExtSheet.columns = [
+            { header: 'Categoría', key: 'categoria', width: 25 },
+            { header: 'Concepto', key: 'concepto', width: 40 },
+            { header: 'Fecha de Compra', key: 'fechaCompra', width: 20, style: { numFmt: 'dd/mm/yyyy' } },
+            { header: 'Monto', key: 'monto', width: 15 },
+            { header: 'Método de Pago', key: 'metodoPago', width: 20 }
+        ];
+
+        // Agrupar gastos extraordinarios por categoría
+        const categoriasExtPresentes = [...new Set(gastosExtraordinarios.map(g => g.categoria || 'OTROS'))];
+        
+        categoriasExtPresentes.forEach(categoria => {
+            const headerRow = gastosExtSheet.addRow([categoria, '', '', '', '']);
+            headerRow.font = { bold: true };
+            headerRow.fill = {
                 type: 'pattern',
                 pattern: 'solid',
-                fgColor: { argb: 'FFD1C4E9' }
+                fgColor: { argb: 'FFE3F2FD' }
             };
 
-            // ... resto del código ...
-
-            // Generar el archivo
-            const buffer = await workbook.xlsx.writeBuffer();
-
-            // Configurar headers de respuesta
-            res.set({
-                'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition': `attachment; filename=reporte-ganancias-${moment().format('YYYYMMDD')}.xlsx`,
-                'Content-Length': buffer.length
+            const gastosDeCategoria = gastosExtraordinarios.filter(g => (g.categoria || 'OTROS') === categoria);
+            gastosDeCategoria.forEach(gasto => {
+                gastosExtSheet.addRow({
+                    categoria: gasto.categoria || 'OTROS',
+                    concepto: gasto.concepto || '',
+                    fechaCompra: gasto.fechaCompra ? new Date(gasto.fechaCompra) : null,
+                    monto: parseFloat(gasto.monto) || 0,
+                    metodoPago: gasto.metodoPago || 'EFECTIVO'
+                });
             });
 
-            // Enviar el archivo
-            console.log('Exportación completada exitosamente');
-            res.send(buffer);
-
-        } catch (error) {
-            console.error('Error en la exportación:', error);
-            res.status(500).json({
-                message: "Error generando Excel",
-                error: error.message
+            // Calcular y agregar subtotal para esta categoría
+            const subtotal = gastosDeCategoria.reduce(
+                (sum, g) => sum + (parseFloat(g.monto) || 0),
+                0
+            );
+            const subtotalRow = gastosExtSheet.addRow({
+                categoria: `Subtotal ${categoria}`,
+                concepto: '',
+                fechaCompra: null,
+                monto: subtotal,
+                metodoPago: ''
             });
-        }
+            subtotalRow.font = { bold: true };
+            subtotalRow.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFE8EAF6' }
+            };
+
+            gastosExtSheet.addRow({}); // Agregar fila vacía después de cada grupo
+        });
+
+        // Aplicar formato a las columnas numéricas
+        gastosExtSheet.getColumn('monto').numFmt = '"$"#,##0.00';
+
+        // Agregar total general
+        const totalRowExt = gastosExtSheet.addRow({
+            categoria: 'TOTAL GENERAL',
+            concepto: '',
+            fechaCompra: null,
+            monto: totalGastosExt,
+            metodoPago: ''
+        });
+
+        totalRowExt.font = { bold: true };
+        totalRowExt.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFD1C4E9' }
+        };
+
+        // Generar el archivo
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        // Configurar headers de respuesta
+        res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition': `attachment; filename=reporte-ganancias-${moment().format('YYYYMMDD')}.xlsx`,
+            'Content-Length': buffer.length
+        });
+
+        // Enviar el archivo
+        console.log('Exportación completada exitosamente');
+        res.send(buffer);
+
     } catch (error) {
         console.error('Error en la exportación:', error);
         res.status(500).json({

@@ -26,7 +26,7 @@ async function cleanOldBackups(userId, month, year, keepCount = 5) {
 
 router.post('/save-ganancias/:userId', async (req, res) => {
     try {
-        const { ingresos, gastosOrdinarios, gastosExtraordinarios, month, year, cajaAnterior } = req.body;
+        const { ingresos, gastosOrdinarios, gastosExtraordinarios, entradas, month, year, cajaAnterior } = req.body;
         const { userId } = req.params;
 
         console.log('Datos recibidos en save-ganancias:', {
@@ -36,7 +36,9 @@ router.post('/save-ganancias/:userId', async (req, res) => {
             cajaAnterior,
             ingresosLength: ingresos?.length,
             gastosOrdinariosLength: gastosOrdinarios?.length,
-            gastosExtraordinariosLength: gastosExtraordinarios?.length
+            gastosExtraordinariosLength: gastosExtraordinarios?.length,
+            entradasLength: entradas?.length,
+            entradas: JSON.stringify(entradas)
         });
 
         if (!userId) {
@@ -136,9 +138,21 @@ router.post('/save-ganancias/:userId', async (req, res) => {
         // Procesar gastos extraordinarios para asegurar fechaCompra
         const gastosExtraordinariosProcessed = gastosExtraordinarios.map(gasto => ({
             ...gasto,
-            fechaCompra: gasto.fechaCompra ? new Date(gasto.fechaCompra) : new Date(),
-            metodoPago: gasto.metodoPago || 'EFECTIVO'
+            monto: parseFloat(gasto.monto) || 0,
+            montoPendiente: parseFloat(gasto.montoPendiente) || 0,
+            metodoPago: 'TARJETA'
         }));
+        
+        // Procesar entradas
+        const entradasProcessed = Array.isArray(entradas) ? entradas.map(entrada => ({
+            ...entrada,
+            monto: parseFloat(entrada.monto) || 0,
+            tipo: entrada.tipo || 'GERENCIA',
+            metodoPago: entrada.metodoPago || 'EFECTIVO',
+            fecha: entrada.fecha ? new Date(entrada.fecha) : new Date()
+        })) : [];
+
+        console.log('Entradas procesadas:', JSON.stringify(entradasProcessed));
 
         // Obtener las reservaciones del mes con sus pagos
         const reservations = await Reservation.aggregate([
@@ -225,12 +239,22 @@ router.post('/save-ganancias/:userId', async (req, res) => {
 
         const totalPendientes = gastosOrdinariosPendientes + gastosExtraordinariosPendientes;
 
+        // Calcular entradas en efectivo
+        const entradasEfectivo = entradasProcessed
+            .filter(entrada => entrada.metodoPago === 'EFECTIVO')
+            .reduce((sum, entrada) => {
+                console.log('Entrada en efectivo encontrada:', entrada);
+                return sum + (parseFloat(entrada.monto) || 0);
+            }, 0);
+
+        console.log('Total entradas en efectivo:', entradasEfectivo);
+
         // Calcular valores de caja usando los totales calculados
         const gastosEfectivo = gastosOrdinariosProcessed
             .filter(g => g.metodoPago === 'EFECTIVO')
             .reduce((sum, g) => sum + (g.monto || 0), 0);
 
-        const saldoFinal = valorCajaAnterior + totals.efectivo - gastosEfectivo;
+        const saldoFinal = valorCajaAnterior + totals.efectivo + entradasEfectivo - gastosEfectivo;
 
         const result = await Ganancias.findOneAndUpdate(
             {
@@ -246,6 +270,7 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                     })),
                     gastosOrdinarios: gastosOrdinariosProcessed,
                     gastosExtraordinarios: gastosExtraordinariosProcessed || [],
+                    entradas: entradasProcessed || [],
                     occupancyRate: estadisticasOcupacion.porcentajeOcupacion,
                     year: parseInt(year),
                     month,
@@ -255,7 +280,8 @@ router.post('/save-ganancias/:userId', async (req, res) => {
                         cajaAnterior: valorCajaAnterior,
                         ingresosEfectivo: ingresos.find(i => i.subcategoria === 'Efectivo')?.monto || 0,
                         gastosEfectivo,
-                        saldoFinal: valorCajaAnterior + (ingresos.find(i => i.subcategoria === 'Efectivo')?.monto || 0) - gastosEfectivo
+                        entradasEfectivo,
+                        saldoFinal: valorCajaAnterior + (ingresos.find(i => i.subcategoria === 'Efectivo')?.monto || 0) + entradasEfectivo - gastosEfectivo
                     },
                     pendientes: {
                         gastosOrdinariosPendientes,
@@ -406,6 +432,7 @@ router.get('/get-ganancias/:userId', async (req, res) => {
                 ],
                 gastosOrdinarios: [],
                 gastosExtraordinarios: [],
+                entradas: [],
                 occupancyRate: estadisticasOcupacion.porcentajeOcupacion
             });
         } else {
@@ -416,6 +443,10 @@ router.get('/get-ganancias/:userId', async (req, res) => {
                 { subcategoria: 'Transferencia', monto: totals.transferencia }
             ];
             ganancias.occupancyRate = estadisticasOcupacion.porcentajeOcupacion;
+            // Asegurarse de que entradas sea un array
+            if (!Array.isArray(ganancias.entradas)) {
+                ganancias.entradas = [];
+            }
         }
 
         await ganancias.save();
