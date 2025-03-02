@@ -41,22 +41,7 @@ const gananciasBackup = require('./src/routes/gananciasBackup');
 const gananciasAnalisis = require('./src/routes/gananciasAnalisis');
 const financialReportRoutes = require('./src/routes/financialReport');
 const TelegramBot = require('node-telegram-bot-api');
-
-// Inicializar el bot de Telegram solo si hay credenciales configuradas
-let bot;
-if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-  try {
-    bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
-    console.log('Bot de Telegram inicializado correctamente');
-  } catch (error) {
-    console.error('Error al inicializar el bot de Telegram:', error);
-    bot = null;
-  }
-} else {
-  console.log('Credenciales de Telegram no configuradas. Las notificaciones no estarán disponibles.');
-  bot = null;
-}
-
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
 const ingresosAuth = require('./src/routes/ingresosAuth');
 const gananciasAuth = require('./src/routes/gananciasAuth');
 
@@ -391,24 +376,6 @@ app.post("/create-reservation", async (req, res) => {
 
     await updateAndEmitPaymentMethodTotals(userId);
 
-    // Enviar notificación a Telegram
-    try {
-      if (bot) {
-        const roomInfo = Array.isArray(reservationData.room) 
-          ? reservationData.room.join(', ') 
-          : reservationData.room;
-        
-        await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
-          `🏨 *KinHotel - Nueva Reserva Creada*\n
-          👤 *Huésped:* ${reservationData.name} ${reservationData.surname}\n        🏷️ *Habitación:* ${roomInfo}\n        📅 *Fechas:* ${new Date(reservationData.start).toLocaleDateString()} al ${new Date(reservationData.end).toLocaleDateString()}\n        💰 *Precio Total:* ${reservationData.precioTotal}\n        ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
-          { parse_mode: 'Markdown' }
-        );
-      }
-    } catch (telegramError) {
-      console.error('Error enviando notificación a Telegram:', telegramError);
-      // No interrumpir el flujo principal si la notificación falla
-    }
-
     res.status(200).json({
       message: "Reservations created successfully",
       reservations: createdReservations,
@@ -588,20 +555,11 @@ app.delete("/delete-reservation/:id", async (req, res) => {
     });
 
     // Enviar notificación a Telegram
-    try {
-      if (bot) {
-        const roomInfo = Array.isArray(reservation.room) ? reservation.room.join(', ') : reservation.room;
-        
-        await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
-          `🏨 *KinHotel - Reserva Eliminada*\n
-          👤 *Huésped:* ${reservation.name} ${reservation.surname}\n        📱 *Teléfono:* ${reservation.phone || "No disponible"}\n        🏷️ *Habitación:* ${roomInfo}\n        📅 *Fechas:* ${new Date(reservation.start).toLocaleDateString()} al ${new Date(reservation.end).toLocaleDateString()}\n        ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
-          { parse_mode: 'Markdown' }
-        );
-      }
-    } catch (telegramError) {
-      console.error('Error enviando notificación a Telegram:', telegramError);
-      // No interrumpir el flujo principal si la notificación falla
-    }
+    await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
+      `🏨 *KinHotel - Reserva Eliminada*\n
+      👤 *Huésped:* ${reservation.name} ${reservation.surname}\n      🏷️ *Habitación:* ${reservation.room.join(', ')}\n      📅 *Fechas:* ${reservation.start} al ${reservation.end}\n      ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
+      { parse_mode: 'Markdown' }
+    );
 
     res.status(200).json({
       success: true,
@@ -680,22 +638,6 @@ app.put("/update-reservation/:id", async (req, res) => {
         io.to(socketId).emit("updateReservation", [updatedReservation]);
       });
     });
-
-    // Enviar notificación a Telegram
-    try {
-      if (bot) {
-        const roomInfo = Array.isArray(finalRooms) ? finalRooms.join(', ') : finalRooms;
-        
-        await bot.sendMessage(process.env.TELEGRAM_CHAT_ID,
-          `🏨 *KinHotel - Reserva Actualizada*\n
-          👤 *Huésped:* ${updatedReservation.name} ${updatedReservation.surname}\n        🏷️ *Habitación:* ${roomInfo}\n        📅 *Fechas:* ${new Date(start).toLocaleDateString()} al ${new Date(end).toLocaleDateString()}\n        💰 *Precio Total:* ${updatedReservation.precioTotal || "N/A"}\n        ⏰ *Hora:* ${new Date().toLocaleTimeString()}`,
-          { parse_mode: 'Markdown' }
-        );
-      }
-    } catch (telegramError) {
-      console.error('Error enviando notificación a Telegram:', telegramError);
-      // No interrumpir el flujo principal si la notificación falla
-    }
 
     res.status(200).json({
       success: true,
